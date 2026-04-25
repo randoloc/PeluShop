@@ -3,26 +3,17 @@ import QtQuick 2.15
 QtObject {
     id: syncManager
 
-    property bool isOnline: false
+property bool isOnline: false
     property bool isSyncing: false
-    property bool isFirebaseConnected: false
+    property bool isSupabaseConnected: false
     property int syncInterval: 60000
     property string lastSyncTime: ""
     property int pendingChangesCount: 0
 
-    property var localStorage: ({
-        servicios: [],
-        usuarios: [],
-        reservas: [],
-        syncQueue: []
-    })
-
-    property string storageFile: "beautybook_data.json"
-
     signal onlineStatusChanged(bool online)
     signal syncStarted()
     signal syncCompleted(bool success, string message)
-    signal firebaseStatusChanged(bool connected)
+    signal supabaseStatusChanged(bool connected)
 
     function init() {
         console.log("SyncManager: Initializing...")
@@ -141,7 +132,7 @@ QtObject {
             isFirebaseConnected = false
         }
 
-        firebaseStatusChanged(isFirebaseConnected)
+        supabaseStatusChanged(isFirebaseConnected)
         console.log("SyncManager: Firebase:", isFirebaseConnected)
 
         if (isFirebaseConnected && localStorage.syncQueue.length > 0) {

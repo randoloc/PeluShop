@@ -1506,13 +1506,10 @@ ApplicationWindow {
                         MouseArea {
                             anchors.fill: parent
                             onClicked: {
-                                parent.parent.parent.editingServicioId = modelData.id
-                                parent.parent.parent.isEditing = true
-                                editNombre.text = modelData.nombre
-                                editPrecio.text = modelData.precio.toString()
-                                editDuracion.text = modelData.duracion.toString()
-                                editCategoria.text = modelData.categoria
-                                editIcono.text = modelData.icono
+                                var listView = parent.parent.parent.parent
+                                listView.editingServicioId = modelData.id
+                                listView.isEditing = true
+                                window.dataLayer.servicioActual = modelData
                             }
                         }
                     }
