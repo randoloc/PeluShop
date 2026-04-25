@@ -9,6 +9,19 @@ Item {
     property string hora: ""
     property bool confirmando: false
 
+    function getDiasEnMes(m) {
+        if (m === 1 || m === 3 || m === 5 || m === 7 || m === 8 || m === 10 || m === 12) return 31
+        if (m === 4 || m === 6 || m === 9 || m === 11) return 30
+        if (m === 2) {
+            var anio = new Date().getFullYear()
+            if ((anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0) return 29
+            return 28
+        }
+        return 30
+    }
+
+    property int diasEnMes: getDiasEnMes(mes)
+
     Component.onCompleted: {
         dataSource = window.dataLayer
         servicio = window.servicioActual
@@ -181,7 +194,7 @@ Item {
                 }
 
                 Text {
-                    text: "Mes actual"
+                    text: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][mes - 1]
                     font.pixelSize: 12
                     color: "#666666"
                 }
@@ -193,7 +206,7 @@ Item {
                     spacing: 8
 
                     Repeater {
-                        model: 28
+                        model: page.diasEnMes
                         delegate: Rectangle {
                             width: 44
                             height: 44

@@ -19,10 +19,10 @@ QtObject {
     ]
 
     property var usuarios: [
-        {id: "admin1", nombre: "Admin Principal", email: "admin@beautybook.com", rol: "admin", fechaRegistro: "2024-01-01", birthday: ""},
-        {id: "user1", nombre: "Ana Garcia", email: "ana@email.com", rol: "cliente", fechaRegistro: "2024-06-15", birthday: "1990-05-15"},
-        {id: "user2", nombre: "Carlos Lopez", email: "carlos@email.com", rol: "cliente", fechaRegistro: "2024-07-20", birthday: ""},
-        {id: "user3", nombre: "Maria Rodriguez", email: "maria@email.com", rol: "cliente", fechaRegistro: "2024-08-10", birthday: "1985-12-20"}
+        {id: "admin1", nombre: "Admin Principal", email: "admin@beautybook.com", rol: "admin", fechaRegistro: "2024-01-01", birthday: "", telefono: ""},
+        {id: "user1", nombre: "Ana Garcia", email: "ana@email.com", rol: "cliente", fechaRegistro: "2024-06-15", birthday: "1990-05-15", telefono: ""},
+        {id: "user2", nombre: "Carlos Lopez", email: "carlos@email.com", rol: "cliente", fechaRegistro: "2024-07-20", birthday: "", telefono: ""},
+        {id: "user3", nombre: "Maria Rodriguez", email: "maria@email.com", rol: "cliente", fechaRegistro: "2024-08-10", birthday: "1985-12-20", telefono: ""}
     ]
 
     property var reservas: [
@@ -192,6 +192,7 @@ QtObject {
         usuario.id = "user" + (usuarios.length + 1)
         usuario.fechaRegistro = new Date().toISOString().split('T')[0]
         if (!usuario.birthday) usuario.birthday = ""
+        if (!usuario.telefono) usuario.telefono = ""
         usuarios.push(usuario)
 
         if (window.syncManager) {

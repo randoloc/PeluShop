@@ -113,34 +113,35 @@ property bool isOnline: false
             console.log("SyncManager: Online status:", isOnline)
 
             if (isOnline) {
-                checkFirebaseConnection()
+                checkSupabaseConnection()
             }
         }
 
         pendingChangesCount = localStorage.syncQueue ? localStorage.syncQueue.length : 0
     }
 
-    function checkFirebaseConnection() {
+    function checkSupabaseConnection() {
         var xhr = new XMLHttpRequest()
-        xhr.open("GET", "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=demo-key", false)
-        xhr.timeout = 5000
+        xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/servicios?select=count", false)
+        xhr.setRequestHeader("apikey", "YOUR_ANON_KEY_HERE")
+        xhr.setRequestHeader("Authorization", "Bearer YOUR_ANON_KEY_HERE")
 
         try {
             xhr.send()
-            isFirebaseConnected = (xhr.status === 200 || xhr.status === 400)
+            isSupabaseConnected = (xhr.status === 200 || xhr.status === 401)
         } catch(e) {
-            isFirebaseConnected = false
+            isSupabaseConnected = false
         }
 
-        supabaseStatusChanged(isFirebaseConnected)
-        console.log("SyncManager: Firebase:", isFirebaseConnected)
+        supabaseStatusChanged(isSupabaseConnected)
+        console.log("SyncManager: Supabase:", isSupabaseConnected)
 
-        if (isFirebaseConnected && localStorage.syncQueue.length > 0) {
-            syncToFirebase()
+        if (isSupabaseConnected && localStorage.syncQueue.length > 0) {
+            syncToSupabase()
         }
     }
 
-    function syncToFirebase() {
+    function syncToSupabase() {
         if (localStorage.syncQueue.length === 0) {
             console.log("SyncManager: No pending changes to sync")
             return
@@ -149,13 +150,13 @@ property bool isOnline: false
         isSyncing = true
         syncStarted()
 
-        console.log("SyncManager: Syncing", localStorage.syncQueue.length, "changes to Firebase...")
+        console.log("SyncManager: Syncing", localStorage.syncQueue.length, "changes to Supabase...")
 
         for (var i = 0; i < localStorage.syncQueue.length; i++) {
             var change = localStorage.syncQueue[i]
             console.log("SyncManager: Syncing:", change.operation, change.table, change.id)
 
-            var success = simulateFirebaseSync(change)
+            var success = simulateSupabaseSync(change)
 
             if (success) {
                 localStorage.syncQueue.splice(i, 1)
@@ -171,53 +172,50 @@ property bool isOnline: false
         console.log("SyncManager: Sync completed")
     }
 
-    function simulateFirebaseSync(change) {
+    function simulateSupabaseSync(change) {
         var xhr = new XMLHttpRequest()
-        var url = "https://us-central1-beauty-booking.cloudfunctions.net/"
+        var baseUrl = "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/"
 
         switch (change.table) {
             case "servicios":
-                url += "syncServicio"
+                baseUrl += "servicios"
                 break
             case "reservas":
-                url += "syncReserva"
+                baseUrl += "reservas"
                 break
             case "usuarios":
-                url += "syncUsuario"
+                baseUrl += "usuarios"
                 break
             default:
                 return false
         }
 
-        xhr.open("POST", url, false)
+        var method = change.operation === "create" ? "POST" : change.operation === "update" ? "PATCH" : "DELETE"
+        xhr.open(method, baseUrl, false)
         xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("apikey", "YOUR_ANON_KEY_HERE")
+        xhr.setRequestHeader("Authorization", "Bearer YOUR_ANON_KEY_HERE")
 
         try {
-            xhr.send(JSON.stringify({
-                operation: change.operation,
-                servicio: change.table === "servicios" ? change.data : null,
-                reserva: change.table === "reservas" ? change.data : null,
-                usuario: change.table === "usuarios" ? change.data : null
-            }))
-            return xhr.status === 200
+            xhr.send(JSON.stringify(change.data))
+            return xhr.status === 200 || xhr.status === 201
         } catch (e) {
-            console.log("SyncManager: Firebase error:", e)
+            console.log("SyncManager: Supabase error:", e)
             return false
         }
     }
 
-    function fetchAllDataFromFirebase() {
+    function fetchAllDataFromSupabase() {
         var xhr = new XMLHttpRequest()
-        xhr.open("POST", "https://us-central1-beauty-booking.cloudfunctions.net/getAllData", false)
-        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/servicios?select=*", false)
+        xhr.setRequestHeader("apikey", "YOUR_ANON_KEY_HERE")
+        xhr.setRequestHeader("Authorization", "Bearer YOUR_ANON_KEY_HERE")
 
         try {
-            xhr.send("{}")
+            xhr.send()
             if (xhr.status === 200) {
                 var data = JSON.parse(xhr.responseText)
-                localStorage.servicios = data.servicios || []
-                localStorage.usuarios = data.usuarios || []
-                localStorage.reservas = data.reservas || []
+                localStorage.servicios = data || []
                 saveToStorage()
                 reloadDataLayer()
                 return true
@@ -241,7 +239,7 @@ property bool isOnline: false
         pendingChangesCount = localStorage.syncQueue.length
         console.log("SyncManager: Queued:", operation, table, id)
 
-        if (isFirebaseConnected) {
+        if (isSupabaseConnected) {
             syncToFirebase()
         }
     }
