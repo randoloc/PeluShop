@@ -1,0 +1,2082 @@
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+
+ApplicationWindow {
+    id: window
+    width: 375
+    height: 812
+    visible: true
+    title: "BeautyBook"
+    color: "#0D0D0D"
+
+    property QtObject dataLayer: DataLayer {}
+    property QtObject syncManager: SyncManager { id: syncMgr }
+    property var currentUser: null
+    property string currentPage: "splash"
+    property var selectedService: null
+    property int selectedDia: -1
+    property string selectedHora: ""
+    property var galleryService: null
+    property bool showGallery: false
+
+    function navigate(page) {
+        currentPage = page
+    }
+
+    function selectService(service) {
+        selectedService = service
+        selectedDia = -1
+        selectedHora = ""
+    }
+
+    function doLogin(user) {
+        if (user.birthday === "" || user.birthday === undefined) {
+            currentUser = user
+            currentPage = "birthday"
+        } else {
+            currentUser = user
+            currentPage = user.rol === "admin" ? "admin" : "inicio"
+        }
+    }
+
+    function logoutUser() {
+        currentUser = null
+        currentPage = "login"
+    }
+
+    Rectangle {
+        width: 375
+        height: 812
+        color: "#0D0D0D"
+
+        // Splash
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "splash"
+
+            Rectangle {
+                width: 160; height: 160
+                radius: 80
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#D4AF37" }
+                    GradientStop { position: 1.0; color: "#8B7355" }
+                }
+                anchors.centerIn: parent
+            }
+
+            Text {
+                text: "B"
+                font.family: "Georgia"
+                font.pixelSize: 80
+                font.bold: true
+                color: "#0D0D0D"
+                anchors.centerIn: parent
+            }
+
+            Text {
+                text: "BeautyBook"
+                font.family: "Georgia"
+                font.pixelSize: 30
+                font.bold: true
+                color: "white"
+                anchors.centerIn: parent
+                y: 100
+            }
+
+            Timer {
+                interval: 2500
+                running: true
+                onTriggered: window.currentPage = "login"
+            }
+        }
+
+        // Login
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "login"
+
+            Column {
+                width: 375
+                spacing: 0
+                anchors.top: parent.top
+                anchors.topMargin: 100
+
+                Text {
+                    text: "B"
+                    font.family: "Georgia"
+                    font.pixelSize: 60
+                    font.bold: true
+                    color: "#D4AF37"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "BeautyBook"
+                    font.family: "Georgia"
+                    font.pixelSize: 28
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "BELLEZA Y ELEGANCIA"
+                    font.pixelSize: 10
+                    color: "#8B7355"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Item { height: 50 }
+
+                Column {
+                    width: 327
+                    x: 24
+                    spacing: 20
+
+                    Text {
+                        text: "Bienvenido"
+                        font.pixelSize: 22
+                        font.bold: true
+                        color: "white"
+                    }
+
+                    Text {
+                        text: "Ingresa tus credenciales"
+                        font.pixelSize: 13
+                        color: "#666666"
+                    }
+
+                    Item { height: 10 }
+
+                    Rectangle {
+                        width: 327
+                        height: 56
+                        radius: 12
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#2A2A2A"
+
+                        TextInput {
+                            id: txtEmail
+                            anchors.fill: parent
+                            anchors.leftMargin: 18
+                            color: "white"
+                            font.pixelSize: 15
+                        }
+
+                        Text {
+                            text: "Correo electronico"
+                            color: "#555555"
+                            font.pixelSize: 14
+                            visible: txtEmail.text === ""
+                            x: 18; y: 18
+                        }
+                    }
+
+                    Item { height: 10 }
+
+                    Rectangle {
+                        width: 327
+                        height: 56
+                        radius: 12
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#2A2A2A"
+
+                        TextInput {
+                            id: txtPass
+                            anchors.fill: parent
+                            anchors.leftMargin: 18
+                            echoMode: TextInput.Password
+                            color: "white"
+                            font.pixelSize: 15
+                        }
+
+                        Text {
+                            text: "Contrasena"
+                            color: "#555555"
+                            font.pixelSize: 14
+                            visible: txtPass.text === ""
+                            x: 18; y: 18
+                        }
+                    }
+
+                    Text {
+                        id: errorText
+                        text: ""
+                        color: "#E53935"
+                        font.pixelSize: 12
+                    }
+
+                    Item { height: 5 }
+
+                    Rectangle {
+                        width: 327
+                        height: 54
+                        radius: 27
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#D4AF37" }
+                            GradientStop { position: 1.0; color: "#8B7355" }
+                        }
+
+                        Text {
+                            text: "INICIAR SESION"
+                            color: "#0D0D0D"
+                            font.bold: true
+                            font.pixelSize: 14
+                            anchors.centerIn: parent
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                var email = txtEmail.text.trim()
+                                var pass = txtPass.text
+
+                                if (!email) {
+                                    errorText.text = "Ingresa tu correo"
+                                    return
+                                }
+                                if (email.indexOf("@") < 0) {
+                                    errorText.text = "Correo invalido"
+                                    return
+                                }
+                                if (pass.length < 6) {
+                                    errorText.text = "Minimo 6 caracteres"
+                                    return
+                                }
+
+                                var esAdmin = email.toLowerCase().indexOf("admin") >= 0 || email.toLowerCase().indexOf("@beautybook") >= 0
+
+                                var usuarioExistente = window.dataLayer.getUsuarioByEmail(email)
+                                var userId
+                                var userNombre
+                                var userBirthday = ""
+                                var esNuevo = false
+
+                                if (usuarioExistente) {
+                                    userId = usuarioExistente.id
+                                    userNombre = usuarioExistente.nombre
+                                    userBirthday = usuarioExistente.birthday || ""
+                                } else {
+                                    var nuevoUsuario = window.dataLayer.addUsuario({
+                                        email: email,
+                                        nombre: email.split("@")[0],
+                                        rol: esAdmin ? "admin" : "cliente",
+                                        birthday: ""
+                                    })
+                                    userId = nuevousuario.id
+                                    userNombre = nuevousuario.nombre
+                                    esNuevo = true
+                                }
+
+                                var user = {
+                                    id: userId,
+                                    email: email,
+                                    nombre: userNombre,
+                                    rol: esAdmin ? "admin" : "cliente",
+                                    birthday: userBirthday,
+                                    esNuevo: esNuevo
+                                }
+
+                                window.doLogin(user)
+                            }
+                        }
+                    }
+
+                    Item { height: 20 }
+
+                    Column {
+                        spacing: 4
+                        Text {
+                            text: "Cuenta de prueba:"
+                            color: "#555555"
+                            font.pixelSize: 11
+                        }
+                        Text {
+                            text: "admin@beautybook.com (Admin)"
+                            color: "#8B7355"
+                            font.pixelSize: 11
+                        }
+                        Text {
+                            text: "cualquier@email.com (Cliente)"
+                            color: "#8B7355"
+                            font.pixelSize: 11
+                        }
+                    }
+                }
+            }
+        }
+
+        // Inicio (Cliente)
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "inicio"
+
+            Column {
+                width: 375
+                spacing: 20
+                anchors.centerIn: parent
+
+                Text {
+                    text: "BeautyBook"
+                    font.family: "Georgia"
+                    font.pixelSize: 24
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Bienvenido"
+                    color: "#8B7355"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Item { height: 30 }
+
+                Rectangle {
+                    width: 300; height: 56
+                    radius: 28
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#D4AF37" }
+                        GradientStop { position: 1.0; color: "#8B7355" }
+                    }
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "+ Nueva Reserva"
+                        color: "#0D0D0D"
+                        font.bold: true
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: window.currentPage = "servicios"
+                    }
+                }
+
+                Item { height: 10 }
+
+                Rectangle {
+                    width: 300; height: 60
+                    radius: 12
+                    color: "#141414"
+                    border.width: 1
+                    border.color: "#252525"
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "Mis Citas"
+                        color: "white"
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: window.currentPage = "misCitas"
+                    }
+                }
+
+                Item { height: 30 }
+
+                Rectangle {
+                    width: 200; height: 50
+                    radius: 25
+                    color: "#1A1A1A"
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "Cerrar Sesion"
+                        color: "#666"
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: window.logoutUser()
+                    }
+                }
+            }
+        }
+
+        // Birthday Registration
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "birthday"
+
+            Column {
+                width: 375
+                spacing: 20
+                anchors.centerIn: parent
+
+                Text {
+                    text: "Bienvenido!"
+                    font.family: "Georgia"
+                    font.pixelSize: 28
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Completa tu perfil"
+                    font.pixelSize: 14
+                    color: "#8B7355"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Item { height: 30 }
+
+                Text {
+                    text: "Cual es tu fecha de nacimiento?"
+                    font.pixelSize: 16
+                    color: "white"
+                    x: 20
+                }
+
+                Rectangle {
+                    width: 300; height: 50
+                    radius: 12
+                    color: "#141414"
+                    border.width: 1
+                    border.color: "#D4AF37"
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    TextInput {
+                        id: birthdayInput
+                        width: 280; height: 30
+                        color: "white"
+                        font.pixelSize: 14
+                        anchors.centerIn: parent
+                        placeholderText: "YYYY-MM-DD"
+                    }
+                }
+
+                Text {
+                    text: "Lo usamos para enviarte promociones especiales!"
+                    font.pixelSize: 12
+                    color: "#666"
+                    x: 20
+                }
+
+                Item { height: 20 }
+
+                Rectangle {
+                    width: 300; height: 50
+                    radius: 25
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#D4AF37" }
+                        GradientStop { position: 1.0; color: "#8B7355" }
+                    }
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "CONTINUAR"
+                        color: "#0D0D0D"
+                        font.bold: true
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            if (birthdayInput.text !== "") {
+                                window.dataLayer.updateUsuarioBirthday(window.currentUser.id, birthdayInput.text)
+                                window.currentUser.birthday = birthdayInput.text
+                            }
+                            window.currentPage = "inicio"
+                        }
+                    }
+                }
+            }
+        }
+
+        // Admin
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "admin"
+
+            Rectangle {
+                width: 375; height: 60
+                color: "#0D0D0D"
+
+                Text {
+                    text: "BeautyBook"
+                    font.family: "Georgia"
+                    font.pixelSize: 22
+                    font.bold: true
+                    color: "white"
+                    x: 20; y: 20
+                }
+
+                Row {
+                    x: 280; y: 22
+                    spacing: 6
+                    Rectangle {
+                        width: 8; height: 8
+                        radius: 4
+                        color: "#4CAF50"
+                    }
+                    Text {
+                        text: "Admin"
+                        font.pixelSize: 13
+                        color: "#8B7355"
+                    }
+                }
+            }
+
+            Column {
+                width: 335
+                x: 20
+                y: 80
+                spacing: 20
+
+                Row {
+                    spacing: 12
+
+                    Rectangle {
+                        width: 105; height: 90
+                        radius: 16
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#252525"
+
+                        Column {
+                            x: 16; y: 20
+                            Text {
+                                text: window.dataLayer.usuarios.length
+                                font.pixelSize: 28
+                                font.bold: true
+                                color: "#D4AF37"
+                            }
+                            Text {
+                                text: "Usuarios"
+                                font.pixelSize: 12
+                                color: "#666"
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 105; height: 90
+                        radius: 16
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#252525"
+
+                        Column {
+                            x: 16; y: 20
+                            Text {
+                                text: window.dataLayer.servicios.length
+                                font.pixelSize: 28
+                                font.bold: true
+                                color: "#4CAF50"
+                            }
+                            Text {
+                                text: "Servicios"
+                                font.pixelSize: 12
+                                color: "#666"
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 105; height: 90
+                        radius: 16
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#252525"
+
+                        Column {
+                            x: 16; y: 20
+                            Text {
+                                text: window.dataLayer.reservas.length
+                                font.pixelSize: 28
+                                font.bold: true
+                                color: "#2196F3"
+                            }
+                            Text {
+                                text: "Citas"
+                                font.pixelSize: 12
+                                color: "#666"
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "ADMINISTRACION"
+                    font.pixelSize: 11
+                    color: "#4A4A4A"
+                }
+
+                Rectangle {
+                    width: 335; height: 70
+                    radius: 14
+                    color: "#141414"
+                    border.width: 1
+                    border.color: "#252525"
+
+                    Row {
+                        x: 20; y: 20
+                        spacing: 12
+
+                        Rectangle {
+                            width: 40; height: 40
+                            radius: 10
+                            color: "#1A1A1A"
+
+                            Text {
+                                text: "✂️"
+                                font.pixelSize: 20
+                                anchors.centerIn: parent
+                            }
+                        }
+
+                        Column {
+                            y: 5
+                            Text {
+                                text: "Gestion de Turnos"
+                                font.pixelSize: 15
+                                font.bold: true
+                                color: "white"
+                            }
+                            Text {
+                                text: "Ver y gestionar reservas"
+                                font.pixelSize: 11
+                                color: "#555"
+                            }
+                        }
+
+                        Text {
+                            text: ">"
+                            font.pixelSize: 20
+                            color: "#4A4A4A"
+                            x: 290; y: 20
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: window.currentPage = "gestionTurnos"
+                    }
+                }
+
+                Rectangle {
+                    width: 335; height: 70
+                    radius: 14
+                    color: "#141414"
+                    border.width: 1
+                    border.color: "#252525"
+
+                    Row {
+                        x: 20; y: 20
+                        spacing: 12
+
+                        Rectangle {
+                            width: 40; height: 40
+                            radius: 10
+                            color: "#1A1A1A"
+
+                            Text {
+                                text: "🎨"
+                                font.pixelSize: 20
+                                anchors.centerIn: parent
+                            }
+                        }
+
+                        Column {
+                            y: 5
+                            Text {
+                                text: "Gestion de Servicios"
+                                font.pixelSize: 15
+                                font.bold: true
+                                color: "white"
+                            }
+                            Text {
+                                text: "Agregar, editar o eliminar"
+                                font.pixelSize: 11
+                                color: "#555"
+                            }
+                        }
+
+                        Text {
+                            text: ">"
+                            font.pixelSize: 20
+                            color: "#4A4A4A"
+                            x: 290; y: 20
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: window.currentPage = "gestionServicios"
+                    }
+                }
+
+                Item { height: 20 }
+
+                Rectangle {
+                    width: 335; height: 50
+                    radius: 25
+                    color: "#1A1A1A"
+                    border.width: 1
+                    border.color: "#2A2A2A"
+
+                    Text {
+                        text: "Cerrar Sesion"
+                        color: "#666"
+                        font.pixelSize: 14
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: window.logoutUser()
+                    }
+                }
+            }
+        }
+
+        // Gestion Turnos (with confirm/cancel)
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "gestionTurnos"
+
+            property string selectedReservaId: ""
+            property var showConfirmDialog: false
+            property var showCancelDialog: false
+            property string cancelMotivo: ""
+
+            Rectangle {
+                width: 375; height: 50
+                color: "#0D0D0D"
+
+                Row {
+                    x: 16; y: 15
+                    spacing: 8
+
+                    Text {
+                        text: "<"
+                        font.pixelSize: 20
+                        color: "#D4AF37"
+                    }
+
+                    Text {
+                        text: "Gestion de Turnos"
+                        font.pixelSize: 18
+                        color: "white"
+                    }
+                }
+
+                MouseArea {
+                    width: 60; height: 50
+                    onClicked: window.currentPage = "admin"
+                }
+            }
+
+            Row {
+                y: 60
+                x: 16
+                spacing: 12
+
+                Rectangle {
+                    height: 32
+                    radius: 16
+                    color: "#D4AF37"
+
+                    Text {
+                        text: window.dataLayer.countReservasByEstado("pendiente") + " Pend."
+                        font.pixelSize: 12
+                        color: "#0D0D0D"
+                        anchors.centerIn: parent
+                    }
+                }
+
+                Rectangle {
+                    height: 32
+                    radius: 16
+                    color: "#4CAF50"
+
+                    Text {
+                        text: window.dataLayer.countReservasByEstado("confirmada") + " Conf."
+                        font.pixelSize: 12
+                        color: "#0D0D0D"
+                        anchors.centerIn: parent
+                    }
+                }
+
+                Rectangle {
+                    height: 32
+                    radius: 16
+                    color: "#666666"
+
+                    Text {
+                        text: window.dataLayer.countReservasByEstado("completada") + " Comp."
+                        font.pixelSize: 12
+                        color: "white"
+                        anchors.centerIn: parent
+                    }
+                }
+            }
+
+            ListView {
+                y: 100
+                width: 375
+                height: 500
+                model: window.dataLayer.reservas
+                delegate: Rectangle {
+                    width: 375
+                    height: 90
+                    color: "#141414"
+                    border.width: 1
+                    border.color: "#252525"
+
+                    Row {
+                        x: 16; y: 10
+                        spacing: 12
+
+                        Rectangle {
+                            width: 40; height: 40
+                            radius: 10
+                            color: modelData.estado === "confirmada" ? "#4CAF50" : modelData.estado === "pendiente" ? "#D4AF37" : modelData.estado === "cancelada" ? "#E53935" : "#2A2A2A"
+
+                            Text {
+                                text: "📅"
+                                font.pixelSize: 18
+                                anchors.centerIn: parent
+                            }
+                        }
+
+                        Column {
+                            y: 2
+                            Text {
+                                text: modelData.usuarioId + " - " + modelData.servicioId
+                                font.pixelSize: 13
+                                color: "white"
+                            }
+                            Row {
+                                spacing: 6
+                                Text {
+                                    text: modelData.fecha + " " + modelData.hora
+                                    font.pixelSize: 12
+                                    color: "#CCC"
+                                }
+                                Text {
+                                    text: "|"
+                                    color: "#4A4A4A"
+                                }
+                                Text {
+                                    text: modelData.estado
+                                    font.pixelSize: 11
+                                    color: modelData.estado === "confirmada" ? "#4CAF50" : modelData.estado === "pendiente" ? "#D4AF37" : modelData.estado === "cancelada" ? "#E53935" : "#666"
+                                }
+                            }
+                        }
+                    }
+
+                    Row {
+                        y: 60
+                        x: 16
+                        spacing: 8
+
+                        // Confirmar button (for pendiente)
+                        Rectangle {
+                            width: 80; height: 24
+                            radius: 12
+                            color: modelData.estado === "pendiente" ? "#4CAF50" : "#333"
+                            visible: modelData.estado === "pendiente"
+
+                            Text {
+                                text: "Confirmar"
+                                font.pixelSize: 10
+                                color: "white"
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    window.dataLayer.confirmarReserva(modelData.id)
+                                    window.currentPage = "admin"
+                                }
+                            }
+                        }
+
+                        // Cancelar button (for confirmada)
+                        Rectangle {
+                            width: 80; height: 24
+                            radius: 12
+                            color: modelData.estado === "confirmada" ? "#E53935" : "#333"
+                            visible: modelData.estado === "confirmada"
+
+                            Text {
+                                text: "Cancelar"
+                                font.pixelSize: 10
+                                color: "white"
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    window.dataLayer.cancelarReserva(modelData.id, "Cancelado por el salon")
+                                    window.currentPage = "admin"
+                                }
+                            }
+                        }
+
+                        // Completar button (for confirmada)
+                        Rectangle {
+                            width: 80; height: 24
+                            radius: 12
+                            color: modelData.estado === "confirmada" ? "#2196F3" : "#333"
+                            visible: modelData.estado === "confirmada"
+
+                            Text {
+                                text: "Completar"
+                                font.pixelSize: 10
+                                color: "white"
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    window.dataLayer.updateReservaEstado(modelData.id, "completada")
+                                    window.currentPage = "admin"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Notification area
+            Rectangle {
+                y: 610
+                width: 335
+                x: 20
+                height: 180
+                radius: 12
+                color: "#141414"
+                border.width: 1
+                border.color: "#252525"
+
+                Column {
+                    x: 16; y: 16
+                    spacing: 12
+
+                    Text {
+                        text: "Notificaciones"
+                        font.pixelSize: 14
+                        font.bold: true
+                        color: "white"
+                    }
+
+                    Text {
+                        text: "Sistema envia notificaciones al cliente cuando:"
+                        font.pixelSize: 12
+                        color: "#666"
+                    }
+
+                    Text {
+                        text: "- Reserva confirmada"
+                        font.pixelSize: 11
+                        color: "#4CAF50"
+                    }
+
+                    Text {
+                        text: "- Reserva cancelada"
+                        font.pixelSize: 11
+                        color: "#E53935"
+                    }
+
+                    Text {
+                        text: "- Reserva completada"
+                        font.pixelSize: 11
+                        color: "#2196F3"
+                    }
+                }
+            }
+        }
+
+        // Gestion Servicios
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "gestionServicios"
+
+            property string editingServicioId: ""
+            property bool isEditing: false
+
+            Rectangle {
+                width: 375; height: 50
+                color: "#0D0D0D"
+
+                Row {
+                    x: 16; y: 15
+                    spacing: 8
+
+                    Text {
+                        text: "<"
+                        font.pixelSize: 20
+                        color: "#D4AF37"
+                    }
+
+                    Text {
+                        text: parent.parent.isEditing ? "Editar Servicio" : "Gestion de Servicios"
+                        font.pixelSize: 18
+                        color: "white"
+                    }
+                }
+
+                MouseArea {
+                    width: 60; height: 50
+                    onClicked: {
+                        parent.parent.isEditing = false
+                        parent.parent.editingServicioId = ""
+                        window.currentPage = "admin"
+                    }
+                }
+            }
+
+            Rectangle {
+                y: 60
+                width: 375
+                height: 692
+
+                visible: parent.isEditing
+
+                Column {
+                    width: 327
+                    x: 24
+                    spacing: 16
+
+                    Text {
+                        text: "Nombre del servicio"
+                        color: "#8B7355"
+                        font.pixelSize: 12
+                    }
+
+                    Rectangle {
+                        width: 327; height: 44
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#D4AF37"
+
+                        TextInput {
+                            id: editNombre
+                            anchors.fill: parent
+                            anchors.leftMargin: 14
+                            color: "white"
+                            font.pixelSize: 14
+                        }
+                    }
+
+                    Text {
+                        text: "Precio ($)"
+                        color: "#8B7355"
+                        font.pixelSize: 12
+                    }
+
+                    Rectangle {
+                        width: 327; height: 44
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#D4AF37"
+
+                        TextInput {
+                            id: editPrecio
+                            anchors.fill: parent
+                            anchors.leftMargin: 14
+                            color: "white"
+                            font.pixelSize: 14
+                            validator: IntValidator {}
+                        }
+                    }
+
+                    Text {
+                        text: "Duracion (minutos)"
+                        color: "#8B7355"
+                        font.pixelSize: 12
+                    }
+
+                    Rectangle {
+                        width: 327; height: 44
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#D4AF37"
+
+                        TextInput {
+                            id: editDuracion
+                            anchors.fill: parent
+                            anchors.leftMargin: 14
+                            color: "white"
+                            font.pixelSize: 14
+                            validator: IntValidator {}
+                        }
+                    }
+
+                    Text {
+                        text: "Categoria"
+                        color: "#8B7355"
+                        font.pixelSize: 12
+                    }
+
+                    Row {
+                        spacing: 8
+
+                        Rectangle {
+                            width: 100; height: 36
+                            radius: 18
+                            color: editCategoria.text === "corte" ? "#D4AF37" : "#1A1A1A"
+                            border.width: 1
+                            border.color: editCategoria.text === "corte" ? "#D4AF37" : "#333"
+
+                            Text {
+                                text: "Corte"
+                                font.pixelSize: 12
+                                color: editCategoria.text === "corte" ? "#0D0D0D" : "#666"
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: editCategoria.text = "corte"
+                            }
+                        }
+
+                        Rectangle {
+                            width: 100; height: 36
+                            radius: 18
+                            color: editCategoria.text === "color" ? "#D4AF37" : "#1A1A1A"
+                            border.width: 1
+                            border.color: editCategoria.text === "color" ? "#D4AF37" : "#333"
+
+                            Text {
+                                text: "Color"
+                                font.pixelSize: 12
+                                color: editCategoria.text === "color" ? "#0D0D0D" : "#666"
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: editCategoria.text = "color"
+                            }
+                        }
+
+                        Rectangle {
+                            width: 100; height: 36
+                            radius: 18
+                            color: editCategoria.text === "tratamiento" ? "#D4AF37" : "#1A1A1A"
+                            border.width: 1
+                            border.color: editCategoria.text === "tratamiento" ? "#D4AF37" : "#333"
+
+                            Text {
+                                text: "Tratamiento"
+                                font.pixelSize: 12
+                                color: editCategoria.text === "tratamiento" ? "#0D0D0D" : "#666"
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: editCategoria.text = "tratamiento"
+                            }
+                        }
+                    }
+
+                    TextInput {
+                        id: editCategoria
+                        visible: false
+                        text: "corte"
+                    }
+
+                    Text {
+                        text: "Icono"
+                        color: "#8B7355"
+                        font.pixelSize: 12
+                    }
+
+                    Row {
+                        spacing: 8
+
+                        Repeater {
+                            model: ["✂️", "💇", "💇‍♀️", "🎨", "🌈", "🎯", "🌅", "💆", "✨", "🌸", "💖"]
+                            delegate: Rectangle {
+                                width: 40; height: 40
+                                radius: 8
+                                color: editIcono.text === modelData ? "#D4AF37" : "#1A1A1A"
+
+                                Text {
+                                    text: modelData
+                                    font.pixelSize: 18
+                                    anchors.centerIn: parent
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: editIcono.text = modelData
+                                }
+                            }
+                        }
+                    }
+
+                    TextInput {
+                        id: editIcono
+                        visible: false
+                        text: "✂️"
+                    }
+
+                    Text {
+                        text: "URLs de fotos (una por linea)"
+                        color: "#8B7355"
+                        font.pixelSize: 12
+                    }
+
+                    Rectangle {
+                        width: 327; height: 80
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#D4AF37"
+
+                        TextEdit {
+                            id: editFotos
+                            width: 307; height: 60
+                            x: 10; y: 10
+                            color: "white"
+                            font.pixelSize: 12
+                            wrapMode: TextEdit.WrapAtWordBoundary
+                            verticalAlignment: TextEdit.AlignTop
+                        }
+                    }
+
+                    Row {
+                        spacing: 12
+                        y: 20
+
+                        Rectangle {
+                            width: 150; height: 44
+                            radius: 22
+                            color: "#E53935"
+
+                            Text {
+                                text: "ELIMINAR"
+                                color: "white"
+                                font.bold: true
+                                font.pixelSize: 12
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    if (parent.parent.parent.parent.editingServicioId !== "") {
+                                        window.dataLayer.deleteServicio(parent.parent.parent.parent.editingServicioId)
+                                        parent.parent.parent.parent.editingServicioId = ""
+                                        parent.parent.parent.parent.isEditing = false
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 150; height: 44
+                            radius: 22
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#D4AF37" }
+                                GradientStop { position: 1.0; color: "#8B7355" }
+                            }
+
+                            Text {
+                                text: "GUARDAR"
+                                color: "#0D0D0D"
+                                font.bold: true
+                                font.pixelSize: 12
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    var fotosArray = editFotos.text.split('\n').filter(function(line) { return line.trim() !== "" })
+                                    var servicio = {
+                                        id: parent.parent.parent.parent.editingServicioId,
+                                        nombre: editNombre.text,
+                                        precio: parseInt(editPrecio.text) || 0,
+                                        duracion: parseInt(editDuracion.text) || 30,
+                                        categoria: editCategoria.text,
+                                        icono: editIcono.text,
+                                        descripcion: editNombre.text,
+                                        fotos: fotosArray
+                                    }
+                                    window.dataLayer.updateServicio(servicio.id, servicio)
+                                    parent.parent.parent.parent.isEditing = false
+                                    parent.parent.parent.parent.editingServicioId = ""
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Column {
+                y: 60
+                visible: !parent.isEditing
+
+                ListView {
+                    width: 375
+                    height: 600
+                    model: window.dataLayer.servicios
+                    delegate: Rectangle {
+                        width: 375
+                        height: 70
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#252525"
+
+                        Row {
+                            x: 16; y: 15
+                            spacing: 12
+
+                            Rectangle {
+                                width: 40; height: 40
+                                radius: 10
+                                color: "#1A1A1A"
+
+                                Text {
+                                    text: modelData.icono
+                                    font.pixelSize: 18
+                                    anchors.centerIn: parent
+                                }
+                            }
+
+                            Column {
+                                y: 2
+                                Text {
+                                    text: modelData.nombre
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    color: "white"
+                                }
+                                Row {
+                                    spacing: 6
+                                    Text {
+                                        text: "$" + modelData.precio
+                                        font.pixelSize: 12
+                                        color: "#D4AF37"
+                                    }
+                                    Text {
+                                        text: "-"
+                                        color: "#4A4A4A"
+                                    }
+                                    Text {
+                                        text: modelData.duracion + " min"
+                                        font.pixelSize: 12
+                                        color: "#666"
+                                    }
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                parent.parent.parent.parent.editingServicioId = modelData.id
+                                parent.parent.parent.parent.isEditing = true
+                                editNombre.text = modelData.nombre
+                                editPrecio.text = modelData.precio.toString()
+                                editDuracion.text = modelData.duracion.toString()
+                                editCategoria.text = modelData.categoria
+                                editIcono.text = modelData.icono
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 335; height: 50
+                    radius: 25
+                    x: 20
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#D4AF37" }
+                        GradientStop { position: 1.0; color: "#8B7355" }
+                    }
+
+                    Text {
+                        text: "+ AGREGAR SERVICIO"
+                        color: "#0D0D0D"
+                        font.bold: true
+                        font.pixelSize: 14
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            var newId = "serv" + (window.dataLayer.servicios.length + 1)
+                            parent.parent.parent.parent.editingServicioId = newId
+                            parent.parent.parent.parent.isEditing = true
+                            editNombre.text = ""
+                            editPrecio.text = ""
+                            editDuracion.text = ""
+                            editCategoria.text = "corte"
+                            editIcono.text = "✂️"
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                y: 710
+                width: 335
+                x: 20
+                height: 80
+                radius: 12
+                color: "#141414"
+                border.width: 1
+                border.color: "#252525"
+
+                Column {
+                    x: 16; y: 12
+                    spacing: 8
+
+                    Row {
+                        spacing: 8
+
+                        Rectangle {
+                            width: 8; height: 8
+                            radius: 4
+                            color: window.syncManager && window.syncManager.isOnline ? "#4CAF50" : "#E53935"
+                        }
+
+                        Text {
+                            text: window.syncManager && window.syncManager.isOnline ? "En linea" : "Sin conexion"
+                            font.pixelSize: 12
+                            color: "#8B7355"
+                        }
+                    }
+
+                    Text {
+                        text: window.syncManager && window.syncManager.pendingChangesCount > 0
+                            ? window.syncManager.pendingChangesCount + " cambios pendientes"
+                            : "Todo sincronizado"
+                        font.pixelSize: 11
+                        color: "#555"
+                    }
+                }
+            }
+        }
+
+        // Service Detail (with gallery)
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "serviceDetail"
+
+            Rectangle {
+                width: 375; height: 50
+                color: "#0D0D0D"
+
+                Row {
+                    x: 16; y: 15
+                    spacing: 8
+
+                    Text {
+                        text: "<"
+                        font.pixelSize: 20
+                        color: "#D4AF37"
+                    }
+
+                    Text {
+                        text: selectedService ? selectedService.nombre : "Detalle"
+                        font.pixelSize: 18
+                        color: "white"
+                    }
+                }
+
+                MouseArea {
+                    width: 60; height: 50
+                    onClicked: currentPage = currentUser && currentUser.rol === "admin" ? "gestionServicios" : "servicios"
+                }
+            }
+
+            Column {
+                y: 60
+                width: 375
+                spacing: 16
+
+                ListView {
+                    width: 375
+                    height: 250
+                    visible: selectedService && selectedService.fotos && selectedService.fotos.length > 0
+                    model: selectedService ? selectedService.fotos : []
+                    snapMode: ListView.SnapOneItem
+                    orientation: ListView.Horizontal
+                    highlightRangeMode: ListView.StrictlyEnforceRange
+
+                    delegate: Rectangle {
+                        width: 375
+                        height: 250
+
+                        Image {
+                            source: modelData
+                            width: 343
+                            height: 230
+                            x: 16
+                            radius: 12
+                            fillMode: Image.PreserveAspectCrop
+                            smooth: true
+                        }
+                        }
+                    }
+
+                    Row {
+                        x: 16
+                        spacing: 8
+
+                        Repeater {
+                            model: selectedService && selectedService.fotos ? selectedService.fotos.length : 0
+
+                            Rectangle {
+                                width: 8; height: 8
+                                radius: 4
+                                color: "#D4AF37"
+                            }
+                        }
+                    }
+
+                Rectangle {
+                    width: 343; height: 200
+                    x: 16
+                    radius: 12
+                    color: "#141414"
+                    visible: !(selectedService && selectedService.fotos && selectedService.fotos.length > 0)
+
+                    Text {
+                        text: "Sin fotos disponibles"
+                        color: "#555"
+                        anchors.centerIn: parent
+                    }
+                }
+
+                Rectangle {
+                    width: 343; height: 120
+                    x: 16
+                    radius: 12
+                    color: "#141414"
+
+                    Column {
+                        x: 16; y: 12
+                        spacing: 8
+
+                        Text {
+                            text: selectedService ? selectedService.nombre : ""
+                            font.pixelSize: 18
+                            font.bold: true
+                            color: "white"
+                        }
+
+                        Row {
+                            spacing: 12
+
+                            Text {
+                                text: "$" + (selectedService ? selectedService.precio : "0")
+                                font.pixelSize: 16
+                                color: "#D4AF37"
+                            }
+
+                            Text {
+                                text: "|"
+                                color: "#4A4A4A"
+                            }
+
+                            Text {
+                                text: (selectedService ? selectedService.duracion : "0") + " min"
+                                font.pixelSize: 14
+                                color: "#8B7355"
+                            }
+                        }
+
+                        Text {
+                            text: selectedService ? selectedService.descripcion : ""
+                            font.pixelSize: 13
+                            color: "#666"
+                            width: 311
+                            wrap: Text.Wrap
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 300; height: 54
+                    radius: 27
+                    x: 20
+                    visible: currentUser && currentUser.rol === "cliente"
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#D4AF37" }
+                        GradientStop { position: 1.0; color: "#8B7355" }
+                    }
+
+                    Text {
+                        text: "RESERVAR"
+                        color: "#0D0D0D"
+                        font.bold: true
+                        font.pixelSize: 14
+                            anchors.centerIn: parent
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                currentPage = "reserva"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Servicios
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "servicios"
+
+            Column {
+                width: 375
+                spacing: 16
+                anchors.top: parent.top
+                anchors.topMargin: 60
+
+                Row {
+                    spacing: 10
+                    x: 16
+
+                    Text {
+                        text: "<"
+                        font.pixelSize: 20
+                        color: "#D4AF37"
+                    }
+
+                    Text {
+                        text: "Servicios"
+                        font.pixelSize: 18
+                        color: "white"
+                    }
+                }
+
+                MouseArea {
+                    width: 60; height: 40
+                    onClicked: window.currentPage = "inicio"
+                }
+
+                ListView {
+                    width: 375
+                    height: 650
+                    model: window.dataLayer.servicios
+                    delegate: Rectangle {
+                        width: 375
+                        height: 80
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#252525"
+
+                        Row {
+                            x: 16; y: 15
+                            spacing: 12
+
+                            Rectangle {
+                                width: 50; height: 50
+                                radius: 10
+                                color: "#1A1A1A"
+
+                                Text {
+                                    text: modelData.icono
+                                    font.pixelSize: 22
+                                    anchors.centerIn: parent
+                                }
+                            }
+
+                            Column {
+                                y: 5
+                                Text {
+                                    text: modelData.nombre
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                    color: "white"
+                                }
+                                Text {
+                                    text: "$" + modelData.precio + " - " + modelData.duracion + " min"
+                                    font.pixelSize: 13
+                                    color: "#D4AF37"
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                window.selectService(modelData)
+                                window.currentPage = "serviceDetail"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Reserva
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "reserva"
+
+            Column {
+                width: 375
+                spacing: 20
+                anchors.top: parent.top
+                anchors.topMargin: 60
+
+                Row {
+                    spacing: 10
+                    x: 16
+
+                    Text {
+                        text: "<"
+                        font.pixelSize: 20
+                        color: "#D4AF37"
+                    }
+
+                    Text {
+                        text: "Nueva Reserva"
+                        font.pixelSize: 18
+                        color: "white"
+                    }
+                }
+
+                MouseArea {
+                    width: 60; height: 40
+                    onClicked: window.currentPage = "servicios"
+                }
+
+                // Selected service info
+                Rectangle {
+                    width: 343; height: 70
+                    radius: 12
+                    color: "#141414"
+                    border.width: 1
+                    border.color: "#D4AF37"
+                    x: 16
+                    y: 70
+
+                    Row {
+                        x: 12; y: 10
+                        spacing: 12
+
+                        Rectangle {
+                            width: 50; height: 50
+                            radius: 10
+                            color: "#1A1A1A"
+
+                            Text {
+                                text: window.selectedService ? window.selectedService.icono : "?"
+                                font.pixelSize: 22
+                                anchors.centerIn: parent
+                            }
+                        }
+
+                        Column {
+                            y: 5
+                            Text {
+                                text: window.selectedService ? window.selectedService.nombre : "Selecciona un servicio"
+                                font.pixelSize: 15
+                                font.bold: true
+                                color: "white"
+                            }
+                            Text {
+                                text: window.selectedService ? "$" + window.selectedService.precio + " - " + window.selectedService.duracion + " min" : ""
+                                font.pixelSize: 13
+                                color: "#D4AF37"
+                            }
+                        }
+                    }
+                }
+
+                Item { height: 20 }
+
+                Text {
+                    text: "Selecciona el dia"
+                    color: "white"
+                    font.pixelSize: 16
+                    x: 16
+                    y: 160
+                }
+
+                Grid {
+                    x: 16
+                    y: 190
+                    columns: 7
+                    spacing: 8
+
+                    Repeater {
+                        model: 28
+                        delegate: Rectangle {
+                            width: 40; height: 40
+                            radius: 20
+                            color: window.selectedDia === index ? "#D4AF37" : "#141414"
+                            border.width: 1
+                            border.color: window.selectedDia === index ? "#D4AF37" : "#252525"
+
+                            Text {
+                                text: index + 1
+                                color: window.selectedDia === index ? "#0D0D0D" : "#CCC"
+                                font.pixelSize: 14
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: window.selectedDia = index
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Selecciona la hora"
+                    color: "white"
+                    font.pixelSize: 16
+                    x: 16
+                    y: 300
+                }
+
+                Grid {
+                    x: 16
+                    y: 330
+                    columns: 4
+                    spacing: 10
+
+                    Repeater {
+                        model: ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00"]
+                        delegate: Rectangle {
+                            width: 75; height: 40
+                            radius: 10
+                            color: window.selectedHora === modelData ? "#D4AF37" : "#141414"
+                            border.width: 1
+                            border.color: window.selectedHora === modelData ? "#D4AF37" : "#252525"
+
+                            Text {
+                                text: modelData
+                                color: window.selectedHora === modelData ? "#0D0D0D" : "#CCC"
+                                font.pixelSize: 13
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: window.selectedHora = modelData
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    id: confirmarBtn
+                    width: 335; height: 54
+                    radius: 27
+                    x: 20
+                    y: 480
+                    color: "#333"
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 27
+                        visible: window.selectedService && window.selectedDia >= 0 && window.selectedHora
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#D4AF37" }
+                            GradientStop { position: 1.0; color: "#8B7355" }
+                        }
+                    }
+
+                    Text {
+                        text: "CONFIRMAR RESERVA"
+                        color: (window.selectedService && window.selectedDia >= 0 && window.selectedHora) ? "#0D0D0D" : "#666"
+                        font.bold: true
+                        font.pixelSize: 14
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            if (window.selectedService && window.selectedDia >= 0 && window.selectedHora) {
+                                var fecha = new Date()
+                                fecha.setDate(fecha.getDate() + window.selectedDia + 1)
+                                var fechaStr = fecha.toISOString().split('T')[0]
+
+                                window.dataLayer.addReserva({
+                                    usuarioId: window.currentUser.id,
+                                    servicioId: window.selectedService.id,
+                                    fecha: fechaStr,
+                                    hora: window.selectedHora
+                                })
+
+                                window.selectedService = null
+                                window.selectedDia = -1
+                                window.selectedHora = ""
+                                window.currentPage = "misCitas"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Mis Citas (Cliente)
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "misCitas"
+
+            Column {
+                width: 375
+                spacing: 16
+                anchors.top: parent.top
+                anchors.topMargin: 60
+
+                Row {
+                    spacing: 10
+                    x: 16
+
+                    Text {
+                        text: "<"
+                        font.pixelSize: 20
+                        color: "#D4AF37"
+                    }
+
+                    Text {
+                        text: "Mis Citas"
+                        font.pixelSize: 18
+                        color: "white"
+                    }
+                }
+
+                MouseArea {
+                    width: 60; height: 40
+                    onClicked: window.currentPage = "inicio"
+                }
+
+                ListView {
+                    width: 375
+                    height: 650
+                    model: window.dataLayer.getReservasByUsuario(window.currentUser ? window.currentUser.id : "")
+                    delegate: Rectangle {
+                        width: 375
+                        height: 90
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#252525"
+
+                        Row {
+                            x: 16; y: 10
+                            spacing: 12
+
+                            Rectangle {
+                                width: 40; height: 40
+                                radius: 10
+                                color: modelData.estado === "confirmada" ? "#4CAF50" : modelData.estado === "pendiente" ? "#D4AF37" : modelData.estado === "cancelada" ? "#E53935" : "#2A2A2A"
+
+                                Text {
+                                    text: "📅"
+                                    font.pixelSize: 18
+                                    anchors.centerIn: parent
+                                }
+                            }
+
+                            Column {
+                                y: 2
+                                Text {
+                                    text: window.dataLayer.getServicioById(modelData.servicioId) ? window.dataLayer.getServicioById(modelData.servicioId).nombre : modelData.servicioId
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    color: "white"
+                                }
+                                Row {
+                                    spacing: 6
+                                    Text {
+                                        text: modelData.fecha + " " + modelData.hora
+                                        font.pixelSize: 12
+                                        color: "#CCC"
+                                    }
+                                }
+                            }
+                        }
+
+                        Row {
+                            y: 60
+                            x: 16
+
+                            Rectangle {
+                                width: 80; height: 24
+                                radius: 12
+                                color: modelData.estado === "confirmada" ? "#4CAF50" : modelData.estado === "pendiente" ? "#D4AF37" : modelData.estado === "cancelada" ? "#E53935" : "#2196F3"
+
+                                Text {
+                                    text: modelData.estado
+                                    font.pixelSize: 11
+                                    color: "white"
+                                    anchors.centerIn: parent
+                                }
+                            }
+
+                            Text {
+                                text: "Reservado el " + modelData.fechaReserva
+                                font.pixelSize: 10
+                                color: "#555"
+                                y: 5
+                                x: 10
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 300; height: 50
+                    radius: 25
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#D4AF37" }
+                        GradientStop { position: 1.0; color: "#8B7355" }
+                    }
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "+ Nueva Reserva"
+                        color: "#0D0D0D"
+                        font.bold: true
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: window.currentPage = "servicios"
+                    }
+                }
+            }
+        }
+    }
+}

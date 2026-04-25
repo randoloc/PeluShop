@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/">
+        <file>src/qml/main.qml</file>
+        <file>src/qml/DataLayer.qml</file>
+        <file>src/qml/SyncManager.qml</file>
+        <file>src/qml/components/GalleryView.qml</file>
+        <file>src/qml/pages/SplashPage.qml</file>
+        <file>src/qml/pages/LoginPage.qml</file>
+        <file>src/qml/pages/InicioPage.qml</file>
+        <file>src/qml/pages/client/ServiciosPage.qml</file>
+        <file>src/qml/pages/client/ReservaPage.qml</file>
+        <file>src/qml/pages/admin/AdminDashboard.qml</file>
+        <file>src/qml/pages/admin/GestionUsuarios.qml</file>
+        <file>src/qml/pages/admin/GestionServicios.qml</file>
+        <file>src/qml/pages/admin/GestionTurnos.qml</file>
+        <file>src/qml/components/CategoriaCard.qml</file>
+    </qresource>
+</RCC>

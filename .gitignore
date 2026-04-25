@@ -1,0 +1,16 @@
+build/
+*.o
+*.obj
+*.exe
+*.app
+qrc_qml.cpp
+.DS_Store
+*.pro.user
+*.autosave
+ios/
+android/
+docs/
+firebase/
+openspec/
+test.qml
+tests/
