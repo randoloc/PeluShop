@@ -3,22 +3,242 @@ import QtQuick 2.15
 QtObject {
     id: syncManager
 
-property bool isOnline: false
+    property bool isOnline: false
     property bool isSyncing: false
     property bool isSupabaseConnected: false
+    property bool initialized: false
     property int syncInterval: 60000
     property string lastSyncTime: ""
     property int pendingChangesCount: 0
+    property string storageFile: "localStorageData.json"
+
+    property var localStorageDataData: ({ syncQueue: [], servicios: [], usuarios: [], reservas: [] })
+
+    property string supabaseUrl: "https://ubmjcdmzfelgmyjuowgf.supabase.co"
+    property string supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVibWpjZG16ZmVsZ215anVvd2dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNjU3MzQsImV4cCI6MjA5MjY0MTczNH0.SxJ0iVqTp1DItbDQ4YUuysK1gg_6n3HCmT4KtPtMFkE"
 
     signal onlineStatusChanged(bool online)
     signal syncStarted()
     signal syncCompleted(bool success, string message)
     signal supabaseStatusChanged(bool connected)
+    signal negocioCheckCompleted(bool tieneNegocio, string negocioId)
 
-    function init() {
-        console.log("SyncManager: Initializing...")
-        loadFromStorage()
-        startNetworkMonitor()
+    Component.onCompleted: {
+        console.log("SyncManager: Component loaded")
+        checkNegocioConfigurado()
+    }
+
+    function checkNegocioConfigurado() {
+        var xhr = new XMLHttpRequest()
+        xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/negocios?select=id,nombre", true)
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                initialized = true
+                if (xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText)
+                    if (data && data.length > 0) {
+                        window.hasNegocio = true
+                        window.currentNegocioId = data[0].id
+                        if (dataLayer) dataLayer.setNegocioId(data[0].id)
+                        window.currentPage = "login"
+                        negocioCheckCompleted(true, data[0].id)
+                        console.log("Negocio configurado:", data[0].nombre)
+                    } else {
+                        window.hasNegocio = false
+                        window.currentNegocioId = ""
+                        window.currentPage = "crearNegocio"
+                        negocioCheckCompleted(false, "")
+                        console.log("No hay negocio, mostrar crearNegocio")
+                    }
+                } else {
+                    window.hasNegocio = false
+                    window.currentNegocioId = ""
+                    window.currentPage = "crearNegocio"
+                    negocioCheckCompleted(false, "")
+                }
+            }
+        }
+
+        xhr.send()
+    }
+
+    function crearNegocio(nombre, telefono, direccion, callback) {
+        var negocioId = "negocio_" + Date.now()
+        var negocioData = {
+            id: negocioId,
+            nombre: nombre,
+            telefono: telefono || "",
+            direccion: direccion || ""
+        }
+
+        var xhr = new XMLHttpRequest()
+        xhr.open("POST", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/negocios", true)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 201) {
+                    window.hasNegocio = true
+                    window.currentNegocioId = negocioId
+                    if (dataLayer) dataLayer.setNegocioId(negocioId)
+                    console.log("Negocio creado:", negocioId)
+                    if (callback) callback(true, negocioId)
+                } else {
+                    console.log("Error creando negocio:", xhr.status, xhr.responseText)
+                    if (callback) callback(false, null)
+                }
+            }
+        }
+
+xhr.send(JSON.stringify(negocioData))
+    }
+
+    function crearNegocioCompleto(datos, callback) {
+        var negocioId = "negocio_" + Date.now()
+        var negocioData = {
+            id: negocioId,
+            nombre: datos.nombre || "",
+            telefono: datos.telefono || "",
+            direccion: datos.direccion || "",
+            descripcion: datos.descripcion || "",
+            hora_apertura: datos.horaApertura || "09:00",
+            hora_cierre: datos.horaCierre || "18:00",
+            dias_laborales: datos.diasLaborales || "lunes,martes,miercoles,jueves,viernes",
+            duracion_cita: datos.duracionCita || 45,
+            notas: datos.notas || ""
+        }
+
+        var xhr = new XMLHttpRequest()
+        xhr.open("POST", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/negocios", true)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 201) {
+                    window.hasNegocio = true
+                    window.currentNegocioId = negocioId
+                    if (dataLayer) dataLayer.setNegocioId(negocioId)
+                    console.log("Negocio completo creado:", negocioId)
+                    if (callback) callback(true, negocioId)
+                } else {
+                    console.log("Error creando negocio completo:", xhr.status, xhr.responseText)
+                    if (callback) callback(false, null)
+                }
+            }
+        }
+
+        xhr.send(JSON.stringify(negocioData))
+    }
+
+    function fetchServiciosForNegocio(negocioId, callback) {
+        var xhr = new XMLHttpRequest()
+        xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/servicios?negocio_id=eq." + negocioId + "&select=*", false)
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
+
+        try {
+            xhr.send()
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText)
+                for (var i = 0; i < data.length; i++) {
+                    data[i] = normalizeToCamelCase(data[i])
+                }
+                if (callback) callback(true, data)
+                return data
+            }
+        } catch (e) {
+            console.log("Error fetching servicios:", e)
+        }
+        if (callback) callback(false, [])
+        return []
+    }
+
+    function fetchUsuariosForNegocio(negocioId, callback) {
+        var xhr = new XMLHttpRequest()
+        xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/usuarios?negocio_id=eq." + negocioId + "&select=*", false)
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
+
+        try {
+            xhr.send()
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText)
+                for (var i = 0; i < data.length; i++) {
+                    data[i] = normalizeToCamelCase(data[i])
+                }
+                if (callback) callback(true, data)
+                return data
+            }
+        } catch (e) {
+            console.log("Error fetching usuarios:", e)
+        }
+        if (callback) callback(false, [])
+        return []
+    }
+
+function loginUsuario(negocioId, email, callback) {
+        var xhr = new XMLHttpRequest()
+        xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/usuarios?negocio_id=eq." + encodeURIComponent(negocioId) + "&email=eq." + encodeURIComponent(email) + "&select=*", true)
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText)
+                    if (data && data.length > 0) {
+                        var usuario = normalizeToCamelCase(data[0])
+                        if (callback) callback(true, usuario)
+                    } else {
+                        if (callback) callback(false, null)
+                    }
+                } else {
+                    if (callback) callback(false, null)
+                }
+            }
+        }
+
+        xhr.send()
+    }
+
+    function crearUsuario(negocioId, nombre, email, rol, callback) {
+        var usuarioId = "user_" + Date.now()
+        var usuarioData = {
+            id: usuarioId,
+            negocio_id: negocioId,
+            nombre: nombre,
+            email: email,
+            rol: rol || "cliente",
+            telefono: "",
+            birthday: ""
+        }
+
+        var xhr = new XMLHttpRequest()
+        xhr.open("POST", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/usuarios", true)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 201) {
+                    console.log("Usuario creado en Supabase:", usuarioId)
+                    if (callback) callback(true, normalizeToCamelCase(JSON.parse(xhr.responseText)))
+                } else {
+                    console.log("Error creando usuario:", xhr.status, xhr.responseText)
+                    if (callback) callback(false, null)
+                }
+            }
+        }
+
+        xhr.send(JSON.stringify(usuarioData))
     }
 
     function loadFromStorage() {
@@ -29,7 +249,7 @@ property bool isOnline: false
             if (xhr.readyState === 4 && xhr.status === 200) {
                 try {
                     var data = JSON.parse(xhr.responseText)
-                    localStorage = data
+                    localStorageData = data
                     console.log("SyncManager: Loaded from local storage")
                 } catch (e) {
                     console.log("SyncManager: Error parsing storage", e)
@@ -43,14 +263,14 @@ property bool isOnline: false
             console.log("SyncManager: No existing storage, using defaults")
         }
 
-        if (localStorage.servicios.length === 0 && dataLayer) {
-            localStorage.servicios = dataLayer.servicios || []
+        if (localStorageData.servicios.length === 0 && dataLayer) {
+            localStorageData.servicios = dataLayer.servicios || []
         }
-        if (localStorage.usuarios.length === 0 && dataLayer) {
-            localStorage.usuarios = dataLayer.usuarios || []
+        if (localStorageData.usuarios.length === 0 && dataLayer) {
+            localStorageData.usuarios = dataLayer.usuarios || []
         }
-        if (localStorage.reservas.length === 0 && dataLayer) {
-            localStorage.reservas = dataLayer.reservas || []
+        if (localStorageData.reservas.length === 0 && dataLayer) {
+            localStorageData.reservas = dataLayer.reservas || []
         }
 
         reloadDataLayer()
@@ -67,7 +287,7 @@ property bool isOnline: false
         }
 
         try {
-            xhr.send(JSON.stringify(localStorage))
+            xhr.send(JSON.stringify(localStorageData))
         } catch(e) {
             console.log("SyncManager: Error saving", e)
         }
@@ -76,9 +296,9 @@ property bool isOnline: false
     function reloadDataLayer() {
         if (!dataLayer) return
 
-        dataLayer.servicios = localStorage.servicios || []
-        dataLayer.usuarios = localStorage.usuarios || []
-        dataLayer.reservas = localStorage.reservas || []
+        dataLayer.servicios = localStorageData.servicios || []
+        dataLayer.usuarios = localStorageData.usuarios || []
+        dataLayer.reservas = localStorageData.reservas || []
 
         console.log("SyncManager: DataLayer reloaded from local storage")
     }
@@ -117,14 +337,14 @@ property bool isOnline: false
             }
         }
 
-        pendingChangesCount = localStorage.syncQueue ? localStorage.syncQueue.length : 0
+        pendingChangesCount = localStorageData.syncQueue ? localStorageData.syncQueue.length : 0
     }
 
     function checkSupabaseConnection() {
         var xhr = new XMLHttpRequest()
         xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/servicios?select=count", false)
-        xhr.setRequestHeader("apikey", "YOUR_ANON_KEY_HERE")
-        xhr.setRequestHeader("Authorization", "Bearer YOUR_ANON_KEY_HERE")
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
 
         try {
             xhr.send()
@@ -136,13 +356,13 @@ property bool isOnline: false
         supabaseStatusChanged(isSupabaseConnected)
         console.log("SyncManager: Supabase:", isSupabaseConnected)
 
-        if (isSupabaseConnected && localStorage.syncQueue.length > 0) {
+        if (isSupabaseConnected && localStorageData.syncQueue.length > 0) {
             syncToSupabase()
         }
     }
 
     function syncToSupabase() {
-        if (localStorage.syncQueue.length === 0) {
+        if (localStorageData.syncQueue.length === 0) {
             console.log("SyncManager: No pending changes to sync")
             return
         }
@@ -150,16 +370,16 @@ property bool isOnline: false
         isSyncing = true
         syncStarted()
 
-        console.log("SyncManager: Syncing", localStorage.syncQueue.length, "changes to Supabase...")
+        console.log("SyncManager: Syncing", localStorageData.syncQueue.length, "changes to Supabase...")
 
-        for (var i = 0; i < localStorage.syncQueue.length; i++) {
-            var change = localStorage.syncQueue[i]
+        for (var i = 0; i < localStorageData.syncQueue.length; i++) {
+            var change = localStorageData.syncQueue[i]
             console.log("SyncManager: Syncing:", change.operation, change.table, change.id)
 
             var success = simulateSupabaseSync(change)
 
             if (success) {
-                localStorage.syncQueue.splice(i, 1)
+                localStorageData.syncQueue.splice(i, 1)
                 i--
             }
         }
@@ -193,11 +413,11 @@ property bool isOnline: false
         var method = change.operation === "create" ? "POST" : change.operation === "update" ? "PATCH" : "DELETE"
         xhr.open(method, baseUrl, false)
         xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.setRequestHeader("apikey", "YOUR_ANON_KEY_HERE")
-        xhr.setRequestHeader("Authorization", "Bearer YOUR_ANON_KEY_HERE")
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
 
         try {
-            xhr.send(JSON.stringify(change.data))
+            xhr.send(JSON.stringify(normalizeToSnakeCase(change.data)))
             return xhr.status === 200 || xhr.status === 201
         } catch (e) {
             console.log("SyncManager: Supabase error:", e)
@@ -208,14 +428,19 @@ property bool isOnline: false
     function fetchAllDataFromSupabase() {
         var xhr = new XMLHttpRequest()
         xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/servicios?select=*", false)
-        xhr.setRequestHeader("apikey", "YOUR_ANON_KEY_HERE")
-        xhr.setRequestHeader("Authorization", "Bearer YOUR_ANON_KEY_HERE")
+        xhr.setRequestHeader("apikey", supabaseKey)
+        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
 
         try {
             xhr.send()
             if (xhr.status === 200) {
                 var data = JSON.parse(xhr.responseText)
-                localStorage.servicios = data || []
+                if (Array.isArray(data)) {
+                    for (var i = 0; i < data.length; i++) {
+                        data[i] = normalizeToCamelCase(data[i])
+                    }
+                }
+                localStorageData.servicios = data || []
                 saveToStorage()
                 reloadDataLayer()
                 return true
@@ -227,7 +452,7 @@ property bool isOnline: false
     }
 
     function queueChange(table, id, operation, data) {
-        localStorage.syncQueue.push({
+        localStorageData.syncQueue.push({
             table: table,
             id: id,
             operation: operation,
@@ -236,24 +461,42 @@ property bool isOnline: false
         })
 
         saveToStorage()
-        pendingChangesCount = localStorage.syncQueue.length
+        pendingChangesCount = localStorageData.syncQueue.length
         console.log("SyncManager: Queued:", operation, table, id)
 
         if (isSupabaseConnected) {
-            syncToFirebase()
+            syncToSupabase()
         }
     }
 
+    function normalizeToSnakeCase(data) {
+        var result = {}
+        for (var key in data) {
+            var snakeKey = key.replace(/([A-Z])/g, function(m) { return "_" + m.toLowerCase(); })
+            result[snakeKey] = data[key]
+        }
+        return result
+    }
+
+    function normalizeToCamelCase(data) {
+        var result = {}
+        for (var key in data) {
+            var camelKey = key.replace(/_([a-z])/g, function(m) { return m[1].toUpperCase(); })
+            result[camelKey] = data[key]
+        }
+        return result
+    }
+
     function addServicio(servicio) {
-        localStorage.servicios.push(servicio)
+        localStorageData.servicios.push(servicio)
         queueChange("servicios", servicio.id, "create", servicio)
         reloadDataLayer()
     }
 
     function updateServicio(servicio) {
-        for (var i = 0; i < localStorage.servicios.length; i++) {
-            if (localStorage.servicios[i].id === servicio.id) {
-                localStorage.servicios[i] = servicio
+        for (var i = 0; i < localStorageData.servicios.length; i++) {
+            if (localStorageData.servicios[i].id === servicio.id) {
+                localStorageData.servicios[i] = servicio
                 break
             }
         }
@@ -262,9 +505,9 @@ property bool isOnline: false
     }
 
     function deleteServicio(servicioId) {
-        for (var i = 0; i < localStorage.servicios.length; i++) {
-            if (localStorage.servicios[i].id === servicioId) {
-                localStorage.servicios.splice(i, 1)
+        for (var i = 0; i < localStorageData.servicios.length; i++) {
+            if (localStorageData.servicios[i].id === servicioId) {
+                localStorageData.servicios.splice(i, 1)
                 break
             }
         }
@@ -273,23 +516,19 @@ property bool isOnline: false
     }
 
     function addReserva(reserva) {
-        localStorage.reservas.push(reserva)
+        localStorageData.reservas.push(reserva)
         queueChange("reservas", reserva.id, "create", reserva)
         reloadDataLayer()
     }
 
     function updateUsuario(usuario) {
-        for (var i = 0; i < localStorage.usuarios.length; i++) {
-            if (localStorage.usuarios[i].id === usuario.id) {
-                localStorage.usuarios[i] = usuario
+        for (var i = 0; i < localStorageData.usuarios.length; i++) {
+            if (localStorageData.usuarios[i].id === usuario.id) {
+                localStorageData.usuarios[i] = usuario
                 break
             }
         }
         queueChange("usuarios", usuario.id, "update", usuario)
         reloadDataLayer()
-    }
-
-    Component.onCompleted: {
-        init()
     }
 }

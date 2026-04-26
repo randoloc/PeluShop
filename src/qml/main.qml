@@ -6,10 +6,11 @@ ApplicationWindow {
     width: 375
     height: 812
     visible: true
-    title: "BeautyBook"
+    title: "PeluShop"
     color: "#0D0D0D"
 
     property QtObject dataLayer: DataLayer {}
+    property QtObject syncMgr: syncManager
     SyncManager {
         id: syncManager
     }
@@ -22,7 +23,13 @@ ApplicationWindow {
     property bool showGallery: false
     property int selDia: 1
     property int selMes: 1
-    property int selAnio: 1990
+property int selAnio: 1990
+property string currentNegocioId: ""
+    property bool hasNegocio: false
+    property bool isEditing: false
+    property var diasTrabajoString: "lunes,martes,miercoles,jueves,viernes"
+    property int duracionCita: 45
+    property var negocioDataTemp: ({})
 
     function navigate(page) {
         currentPage = page
@@ -86,7 +93,7 @@ ApplicationWindow {
             }
 
             Text {
-                text: "BeautyBook"
+                text: "PeluShop"
                 font.family: "Georgia"
                 font.pixelSize: 30
                 font.bold: true
@@ -96,9 +103,31 @@ ApplicationWindow {
             }
 
             Timer {
-                interval: 2500
+                interval: 100
                 running: true
-                onTriggered: window.currentPage = "login"
+                repeat: true
+                onTriggered: {
+                    if (syncMgr && syncMgr.initialized) {
+                            running = false
+                        }
+                    }
+                }
+            }
+
+            Timer {
+                interval: 5000
+                running: true
+                onTriggered: {
+                    running = false
+                    if (currentPage === "splash") {
+                        if (syncMgr && syncMgr.initialized) {
+                            syncMgr.checkNegocioConfigurado()
+                        } else {
+                            console.log("SyncManager timeout, going to crearNegocio")
+                            currentPage = "crearNegocio"
+                        }
+                    }
+                }
             }
         }
 
@@ -124,7 +153,7 @@ ApplicationWindow {
                 }
 
                 Text {
-                    text: "BeautyBook"
+                    text: "PeluShop"
                     font.family: "Georgia"
                     font.pixelSize: 28
                     font.bold: true
@@ -259,40 +288,44 @@ ApplicationWindow {
                                     return
                                 }
 
-                                var esAdmin = email.toLowerCase().indexOf("admin") >= 0 || email.toLowerCase().indexOf("@beautybook") >= 0
+                                errorText.text = "Conectando..."
 
-                                var usuarioExistente = window.dataLayer.getUsuarioByEmail(email)
-                                var userId
-                                var userNombre
-                                var userBirthday = ""
-                                var esNuevo = false
-
-                                if (usuarioExistente) {
-                                    userId = usuarioExistente.id
-                                    userNombre = usuarioExistente.nombre
-                                    userBirthday = usuarioExistente.birthday || ""
-                                } else {
-                                    var nuevoUsuario = window.dataLayer.addUsuario({
-                                        email: email,
-                                        nombre: email.split("@")[0],
-                                        rol: esAdmin ? "admin" : "cliente",
-                                        birthday: ""
+                                if (window.syncManager && window.currentNegocioId) {
+                                    window.syncManager.loginUsuario(window.currentNegocioId, email, function(success, usuario) {
+                                        if (success) {
+                                            var user = {
+                                                id: usuario.id,
+                                                email: usuario.email,
+                                                nombre: usuario.nombre,
+                                                rol: usuario.rol,
+                                                birthday: usuario.birthday || "",
+                                                negocioId: usuario.negocioId
+                                            }
+                                            window.doLogin(user)
+                                        } else {
+                                            var esAdmin = email.toLowerCase().indexOf("admin") >= 0
+                                            if (window.syncManager) {
+                                                window.syncManager.crearUsuario(window.currentNegocioId, email.split("@")[0], email, esAdmin ? "admin" : "cliente", function(cuccess, nuevoUsuario) {
+                                                    if (cuccess) {
+                                                        var user = {
+                                                            id: nuevoUsuario.id,
+                                                            email: email,
+                                                            nombre: nuevoUsuario.nombre,
+                                                            rol: nuevoUsuario.rol,
+                                                            birthday: "",
+                                                            negocioId: window.currentNegocioId
+                                                        }
+                                                        window.doLogin(user)
+                                                    } else {
+                                                        errorText.text = "Error al registrar"
+                                                    }
+                                                })
+                                            }
+                                        }
                                     })
-                                    userId = nuevoUsuario.id
-                                    userNombre = nuevoUsuario.nombre
-                                    esNuevo = true
+                                } else {
+                                    errorText.text = "Error de conexion"
                                 }
-
-                                var user = {
-                                    id: userId,
-                                    email: email,
-                                    nombre: userNombre,
-                                    rol: esAdmin ? "admin" : "cliente",
-                                    birthday: userBirthday,
-                                    esNuevo: esNuevo
-                                }
-
-                                window.doLogin(user)
                             }
                         }
                     }
@@ -321,6 +354,520 @@ ApplicationWindow {
             }
         }
 
+        // Crear Negocio (solo primera vez)
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "crearNegocio"
+
+            Column {
+                width: 375
+                spacing: 0
+                anchors.top: parent.top
+                anchors.topMargin: 80
+
+                Text {
+                    text: "B"
+                    font.family: "Georgia"
+                    font.pixelSize: 50
+                    font.bold: true
+                    color: "#D4AF37"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Crear tu Salon"
+                    font.family: "Georgia"
+                    font.pixelSize: 26
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Configura tu negocio para comenzar"
+                    font.pixelSize: 13
+                    color: "#666666"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Item { height: 40 }
+
+                Column {
+                    width: 327
+                    x: 24
+                    spacing: 16
+
+                    Text {
+                        text: "Nombre del salon"
+                        font.pixelSize: 12
+                        color: "#8B7355"
+                    }
+
+                    Rectangle {
+                        width: 327
+                        height: 50
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#2A2A2A"
+
+                        TextInput {
+                            id: txtNombreNegocio
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            color: "white"
+                            font.pixelSize: 15
+                        }
+                    }
+
+                    Text {
+                        text: "Telefono"
+                        font.pixelSize: 12
+                        color: "#8B7355"
+                    }
+
+                    Rectangle {
+                        width: 327
+                        height: 50
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#2A2A2A"
+
+                        TextInput {
+                            id: txtTelefonoNegocio
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            color: "white"
+                            font.pixelSize: 15
+                        }
+                    }
+
+                    Text {
+                        text: "Direccion"
+                        font.pixelSize: 12
+                        color: "#8B7355"
+                    }
+
+                    Rectangle {
+                        width: 327
+                        height: 50
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#2A2A2A"
+
+                        TextInput {
+                            id: txtDireccionNegocio
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            color: "white"
+                            font.pixelSize: 15
+                        }
+                    }
+
+                    Text {
+                        id: errorNegocio
+                        text: ""
+                        color: "#E53935"
+                        font.pixelSize: 12
+                    }
+
+                    Item { height: 10 }
+
+                    Rectangle {
+                        width: 327
+                        height: 54
+                        radius: 27
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#D4AF37" }
+                            GradientStop { position: 1.0; color: "#8B7355" }
+                        }
+
+                        Text {
+                            text: "CREAR SALON"
+                            color: "#0D0D0D"
+                            font.bold: true
+                            font.pixelSize: 14
+                            anchors.centerIn: parent
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                var nombre = txtNombreNegocio.text.trim()
+                                if (!nombre) {
+                                    errorNegocio.text = "Ingresa el nombre del salon"
+                                    return
+                                }
+
+                                var telefono = txtTelefonoNegocio.text.trim()
+                                var direccion = txtDireccionNegocio.text.trim()
+
+                                console.log("Creando negocio:", nombre)
+                                errorNegocio.text = "Creando..."
+
+                                var sm = syncMgr
+                                console.log("SyncManager:", !!sm, "initialized:", sm ? sm.initialized : false)
+
+                                if (sm) {
+                                    negocioDataTemp = {
+                                        nombre: nombre,
+                                        telefono: telefono,
+                                        direccion: direccion
+                                    }
+                                    currentPage = "configurarNegocio"
+                                } else {
+                                    errorNegocio.text = "Error: SyncManager no disponible"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Configurar Negocio (Step 2 - Onboarding)
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "configurarNegocio"
+
+            Flickable {
+                width: 375
+                height: 812
+                contentHeight: contenidoConfic.height + 40
+
+                Column {
+                    id: contenidoConfic
+                    width: 375
+                    spacing: 0
+                    anchors.top: parent.top
+                    anchors.topMargin: 60
+
+                    Row {
+                        spacing: 10
+                        x: 16
+
+                        Text {
+                            text: "<"
+                            font.pixelSize: 20
+                            color: "#D4AF37"
+                        }
+
+                        Text {
+                            text: "Configurar Salon"
+                            font.pixelSize: 18
+                            color: "white"
+                        }
+                    }
+
+                    Text {
+                        text: "Paso 2 de 2 - Personaliza tu negocio"
+                        font.pixelSize: 12
+                        color: "#666"
+                        x: 16
+                        anchors.topMargin: 8
+                    }
+
+                    Item { height: 30 }
+
+                    Column {
+                        width: 327
+                        x: 24
+                        spacing: 16
+
+                        Text {
+                            text: "Descripcion (opcional)"
+                            font.pixelSize: 12
+                            color: "#8B7355"
+                        }
+
+                        Rectangle {
+                            width: 327
+                            height: 80
+                            radius: 10
+                            color: "#141414"
+                            border.width: 1
+                            border.color: "#2A2A2A"
+
+                            TextEdit {
+                                id: txtDescripcion
+                                anchors.fill: parent
+                                anchors.margins: 12
+                                color: "white"
+                                font.pixelSize: 14
+                                wrapMode: TextEdit.Wrap
+                            }
+
+                            Text {
+                                text: "Breve descripcion de tu salon..."
+                                color: "#555"
+                                font.pixelSize: 14
+                                anchors.margins: 16
+                                visible: txtDescripcion.text === ""
+                                anchors.top: parent.top
+                                anchors.topMargin: 16
+                            }
+                        }
+
+                        Text {
+                            text: "Horario de atencion"
+                            font.pixelSize: 12
+                            color: "#8B7355"
+                        }
+
+                        Row {
+                            spacing: 10
+                            width: 327
+
+                            Column {
+                                width: 150
+
+                                Text {
+                                    text: "Apertura"
+                                    font.pixelSize: 11
+                                    color: "#666"
+                                }
+
+                                Rectangle {
+                                    width: 150
+                                    height: 44
+                                    radius: 10
+                                    color: "#141414"
+                                    border.width: 1
+                                    border.color: "#2A2A2A"
+
+                                    TextInput {
+                                        id: txtHoraApertura
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 12
+                                        color: "white"
+                                        font.pixelSize: 14
+                                        inputMask: "00:00"
+                                        text: "09:00"
+                                    }
+                                }
+                            }
+
+                            Column {
+                                width: 150
+
+                                Text {
+                                    text: "Cierre"
+                                    font.pixelSize: 11
+                                    color: "#666"
+                                }
+
+                                Rectangle {
+                                    width: 150
+                                    height: 44
+                                    radius: 10
+                                    color: "#141414"
+                                    border.width: 1
+                                    border.color: "#2A2A2A"
+
+                                    TextInput {
+                                        id: txtHoraCierre
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 12
+                                        color: "white"
+                                        font.pixelSize: 14
+                                        inputMask: "00:00"
+                                        text: "18:00"
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "Dias de trabajo"
+                            font.pixelSize: 12
+                            color: "#8B7355"
+                        }
+
+                        Row {
+                            spacing: 8
+                            width: 327
+
+                            Repeater {
+                                model: [
+                                    {dia: "L", clave: "lunes"},
+                                    {dia: "M", clave: "martes"},
+                                    {dia: "X", clave: "miercoles"},
+                                    {dia: "J", clave: "jueves"},
+                                    {dia: "V", clave: "viernes"},
+                                    {dia: "S", clave: "sabado"},
+                                    {dia: "D", clave: "domingo"}
+                                ]
+
+                                delegate: Rectangle {
+                                    width: 40
+                                    height: 40
+                                    radius: 20
+                                    color: diasTrabajoString.includes(modelData.clave) ? "#D4AF37" : "#1A1A1A"
+                                    border.width: 1
+                                    border.color: diasTrabajoString.includes(modelData.clave) ? "#D4AF37" : "#2A2A2A"
+
+                                    Text {
+                                        text: modelData.dia
+                                        color: diasTrabajoString.includes(modelData.clave) ? "#0D0D0D" : "#666"
+                                        font.bold: true
+                                        anchors.centerIn: parent
+                                        font.pixelSize: 14
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            if (diasTrabajoString.includes(modelData.clave)) {
+                                                diasTrabajoString = diasTrabajoString.replace(modelData.clave, "").replace(",,", ",")
+                                                if (diasTrabajoString.charAt(0) === ",") diasTrabajoString = diasTrabajoString.substring(1)
+                                                if (diasTrabajoString.charAt(diasTrabajoString.length - 1) === ",") diasTrabajoString = diasTrabajoString.substring(0, diasTrabajoString.length - 1)
+                                            } else {
+                                                diasTrabajoString = diasTrabajoString === "" ? modelData.clave : diasTrabajoString + "," + modelData.clave
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "Duracion por defecto de cita"
+                            font.pixelSize: 12
+                            color: "#8B7355"
+                        }
+
+                        Row {
+                            spacing: 10
+
+                            Repeater {
+                                model: [30, 45, 60, 90]
+
+                                delegate: Rectangle {
+                                    width: 70
+                                    height: 40
+                                    radius: 10
+                                    color: duracionCita === modelData ? "#D4AF37" : "#1A1A1A"
+                                    border.width: 1
+                                    border.color: duracionCita === modelData ? "#D4AF37" : "#2A2A2A"
+
+                                    Text {
+                                        text: modelData + " min"
+                                        color: duracionCita === modelData ? "#0D0D0D" : "#666"
+                                        font.pixelSize: 12
+                                        anchors.centerIn: parent
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: duracionCita = modelData
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "Notas del salon (opcional)"
+                            font.pixelSize: 12
+                            color: "#8B7355"
+                        }
+
+                        Rectangle {
+                            width: 327
+                            height: 60
+                            radius: 10
+                            color: "#141414"
+                            border.width: 1
+                            border.color: "#2A2A2A"
+
+                            TextInput {
+                                id: txtNotas
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.topMargin: 8
+                                color: "white"
+                                font.pixelSize: 14
+                            }
+
+                            Text {
+                                text: "Ej: Solo citas previas"
+                                color: "#555"
+                                font.pixelSize: 14
+                                anchors.leftMargin: 16
+                                anchors.topMargin: 14
+                                visible: txtNotas.text === ""
+                            }
+                        }
+
+                        Text {
+                            id: errorConfigurar
+                            text: ""
+                            color: "#E53935"
+                            font.pixelSize: 12
+                        }
+
+                        Item { height: 20 }
+
+                        Rectangle {
+                            width: 327
+                            height: 54
+                            radius: 27
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#D4AF37" }
+                                GradientStop { position: 1.0; color: "#8B7355" }
+                            }
+
+                            Text {
+                                text: "GUARDAR Y CONTINUAR"
+                                color: "#0D0D0D"
+                                font.bold: true
+                                font.pixelSize: 14
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+if (diasTrabajoString === "") {
+                                            errorConfigurar.text = "Selecciona al menos un dia"
+                                            return
+                                        }
+
+var sm = syncMgr
+                                    if (sm && Object.keys(negocioDataTemp).length > 0) {
+                                        var datosExtra = {
+                                            nombre: negocioDataTemp.nombre,
+                                            telefono: negocioDataTemp.telefono,
+                                            direccion: negocioDataTemp.direccion,
+                                            descripcion: txtDescripcion.text.trim(),
+                                            horaApertura: txtHoraApertura.text,
+                                            horaCierre: txtHoraCierre.text,
+                                            diasLaborales: diasTrabajoString,
+                                            duracionCita: duracionCita,
+                                            notas: txtNotas.text.trim()
+                                        }
+
+                                        sm.crearNegocioCompleto(datosExtra, function(success, negocioId) {
+                                            if (success) {
+                                                currentPage = "login"
+                                            } else {
+                                                errorConfigurar.text = "Error al guardar"
+                                            }
+                                        })
+                                    }
+                                }
+                            }
+                        }
+
+                        Item { height: 40 }
+                    }
+                }
+            }
+        }
+
         // Inicio (Cliente)
         Rectangle {
             width: 375; height: 812
@@ -333,7 +880,7 @@ ApplicationWindow {
                 anchors.centerIn: parent
 
                 Text {
-                    text: "BeautyBook"
+                    text: "PeluShop"
                     font.family: "Georgia"
                     font.pixelSize: 24
                     font.bold: true
@@ -427,7 +974,7 @@ ApplicationWindow {
 
             Column {
                 width: 375
-                spacing: 20
+                spacing: 15
                 anchors.centerIn: parent
 
                 Text {
@@ -446,10 +993,69 @@ ApplicationWindow {
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
-                Item { height: 30 }
+                Item { height: 20 }
 
                 Text {
-                    text: "Cual es tu fecha de nacimiento?"
+                    text: "Número de teléfono"
+                    font.pixelSize: 16
+                    color: "white"
+                    x: 20
+                }
+
+                Text {
+                    text: "Used to confirm or cancel your appointment"
+                    font.pixelSize: 11
+                    color: "#666666"
+                    x: 20
+                }
+
+                Rectangle {
+                    width: 327; height: 44
+                    radius: 8
+                    color: "#141414"
+                    border.width: 1
+                    border.color: "#D4AF37"
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    TextInput {
+                        id: txtTelefono
+                        anchors.fill: parent
+                        anchors.leftMargin: 14
+                        color: "white"
+                        font.pixelSize: 14
+                        inputMask: "+00 000 000 0000"
+                    }
+                }
+
+                Rectangle {
+                    width: 200; height: 36
+                    radius: 18
+                    color: "#1A1A1A"
+                    border.width: 1
+                    border.color: "#252525"
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "Detectar de SIM"
+                        font.pixelSize: 12
+                        color: "#D4AF37"
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            var simNumbers = ["+34600000000", "+34600000001", "+34600000002"]
+                            var randomNum = simNumbers[Math.floor(Math.random() * simNumbers.length)]
+                            txtTelefono.text = randomNum
+                        }
+                    }
+                }
+
+                Item { height: 10 }
+
+                Text {
+                    text: "Cuál es tu fecha de nacimiento?"
                     font.pixelSize: 16
                     color: "white"
                     x: 20
@@ -600,7 +1206,9 @@ ApplicationWindow {
                             var dd = selDia < 10 ? "0" + selDia : selDia
                             var selectedDate = selAnio + "-" + mm + "-" + dd
                             window.dataLayer.updateUsuarioBirthday(window.currentUser.id, selectedDate)
+                            window.dataLayer.updateUsuarioTelefono(window.currentUser.id, txtTelefono.text)
                             window.currentUser.birthday = selectedDate
+                            window.currentUser.telefono = txtTelefono.text
                             window.currentPage = "inicio"
                         }
                     }
@@ -619,7 +1227,7 @@ ApplicationWindow {
                 color: "#0D0D0D"
 
                 Text {
-                    text: "BeautyBook"
+                    text: "PeluShop"
                     font.family: "Georgia"
                     font.pixelSize: 22
                     font.bold: true
@@ -1126,9 +1734,6 @@ ApplicationWindow {
             color: "#0D0D0D"
             visible: currentPage === "gestionServicios"
 
-            property string editingServicioId: ""
-            property bool isEditing: false
-
             Rectangle {
                 width: 375; height: 50
                 color: "#0D0D0D"
@@ -1165,7 +1770,16 @@ ApplicationWindow {
                 width: 375
                 height: 692
 
-                visible: parent.isEditing
+                visible: window.isEditing
+
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#0D0D0D" }
+                        GradientStop { position: 0.5; color: "#141414" }
+                        GradientStop { position: 1.0; color: "#0D0D0D" }
+                    }
+                }
 
                 Column {
                     width: 327
@@ -1749,14 +2363,13 @@ ApplicationWindow {
                         color: "#0D0D0D"
                         font.bold: true
                         font.pixelSize: 14
-                            anchors.centerIn: parent
-                        }
+                        anchors.centerIn: parent
+                    }
 
                         MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                currentPage = "reserva"
-                            }
+                        anchors.fill: parent
+                        onClicked: {
+                            currentPage = "reserva"
                         }
                     }
                 }
@@ -2041,12 +2654,14 @@ ApplicationWindow {
                                 fecha.setDate(fecha.getDate() + window.selectedDia + 1)
                                 var fechaStr = fecha.toISOString().split('T')[0]
 
-                                window.dataLayer.addReserva({
+                                var nuevaReserva = window.dataLayer.addReserva({
                                     usuarioId: window.currentUser.id,
                                     servicioId: window.selectedService.id,
                                     fecha: fechaStr,
                                     hora: window.selectedHora
                                 })
+
+                                console.log("Reserva creada:", nuevaReserva.id, "para usuario:", window.currentUser.id)
 
                                 window.selectedService = null
                                 window.selectedDia = -1
@@ -2064,6 +2679,13 @@ ApplicationWindow {
             width: 375; height: 812
             color: "#0D0D0D"
             visible: currentPage === "misCitas"
+
+            onVisibleChanged: {
+                if (visible) {
+                    console.log("Navegando a MisCitas, usuario:", window.currentUser ? window.currentUser.id : "sin usuario")
+                    console.log("Reservas totales:", window.dataLayer.reservas.length)
+                }
+            }
 
             Column {
                 width: 375
@@ -2107,7 +2729,13 @@ ApplicationWindow {
                 ListView {
                     width: 375
                     height: 650
+                    clip: true
                     model: window.dataLayer.getReservasByUsuario(window.currentUser ? window.currentUser.id : "")
+
+                    Component.onCompleted: {
+                        console.log("MisCitas: cargando reservas para usuario:", window.currentUser ? window.currentUser.id : "sin usuario")
+                    }
+
                     delegate: Rectangle {
                         width: 375
                         height: 90
