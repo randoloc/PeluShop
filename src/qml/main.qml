@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import Qt.labs.platform 1.0
-import "qrc:/src/qml" as PeluShoComponents
 
 ApplicationWindow {
     id: window
@@ -10,8 +9,6 @@ ApplicationWindow {
     visible: true
     title: "PeluShop"
     color: "#0D0D0D"
-
-    property var clipboard: Clipboard { }
 
     property QtObject dataLayer: DataLayer {}
     property QtObject syncMgr: syncManager
@@ -1064,8 +1061,8 @@ property string currentNegocioId: ""
                     MouseArea {
                         anchors.fill: parent
                         onClicked: {
-                            // Copy to clipboard
-                            clipboard.text = window.tempAdminPassword
+                            // Copy to clipboard using Qt.labs.platform Clipboard
+                            Clipboard.text = window.tempAdminPassword
                             copyFeedback.text = "Copiado!"
                             copyFeedbackTimer.start()
                         }
