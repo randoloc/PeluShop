@@ -212,8 +212,8 @@ property string currentNegocioId: ""
                             anchors.leftMargin: 18
                             color: "white"
                             font.pixelSize: 15
-                            Component.onCompleted: {
-                                if (window.autoFillEmail) {
+                            onVisibleChanged: {
+                                if (visible && window.autoFillEmail) {
                                     text = window.autoFillEmail
                                     window.autoFillEmail = ""
                                 }
