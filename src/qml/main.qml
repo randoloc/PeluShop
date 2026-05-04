@@ -1050,21 +1050,268 @@ property string currentNegocioId: ""
                     border.color: "#8B7355"
                     border.width: 2
 
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 15
+
+                        Text {
+                            text: window.tempAdminPassword
+                            font.pixelSize: 24
+                            font.bold: true
+                            color: "#8B7355"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Rectangle {
+                            id: copyBtn
+                            width: 80; height: 36
+                            color: copyMA.pressed ? "#5A4F3F" : "#8B7355"
+                            radius: 18
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                id: copyBtnText
+                                text: "Copiar"
+                                color: "white"
+                                font.pixelSize: 14
+                                font.bold: true
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                id: copyMA
+                                anchors.fill: parent
+                                onClicked: {
+                                    console.log("=== COPY CLICKED ===")
+                                    Clipboard.text = window.tempAdminPassword
+                                    console.log("Clipboard now:", Clipboard.text)
+                                    copyFeedback.text = "Copiado!"
+                                    copyBtnText.text = "Copiado"
+                                    copyFeedbackTimer.restart()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    id: copyFeedback
+                    text: ""
+                    color: "#4CAF50"
+                    font.pixelSize: 14
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Timer {
+                    id: copyFeedbackTimer
+                    interval: 2000
+                    onTriggered: {
+                        copyFeedback.text = ""
+                        copyBtnText.text = "Copiar"
+                    }
+                }
+
+                Text {
+                    text: "Email: " + window.tempAdminEmail
+                    font.pixelSize: 16
+                    color: "#CCCCCC"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Item { height: 20 }
+
+                Rectangle {
+                    width: 200; height: 50
+                    color: "#8B7355"
+                    radius: 25
+                    anchors.horizontalCenter: parent.horizontalCenter
+
                     Text {
-                        text: window.tempAdminPassword
-                        font.pixelSize: 24
+                        text: "Continuar al login"
+                        color: "white"
+                        font.pixelSize: 16
                         font.bold: true
-                        color: "#8B7355"
                         anchors.centerIn: parent
                     }
 
                     MouseArea {
                         anchors.fill: parent
                         onClicked: {
-                            // Copy to clipboard using Qt.labs.platform Clipboard
-                            Clipboard.text = window.tempAdminPassword
-                            copyFeedback.text = "Copiado!"
-                            copyFeedbackTimer.start()
+                            window.autoFillEmail = window.tempAdminEmail
+                            currentPage = "login"
+                        }
+                    }
+                }
+            }
+        }
+
+        // Change Password Page (first login)
+
+                Text {
+                    text: "PeluShop"
+                    font.family: "Georgia"
+                    font.pixelSize: 28
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Item { height: 20 }
+
+                Text {
+                    text: "Tu contraseña temporal"
+                    font.pixelSize: 22
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Guarda esta contraseña, la necesitarás para tu primer inicio de sesión"
+                    font.pixelSize: 14
+                    color: "#AAAAAA"
+                    width: 300
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Rectangle {
+                    width: 300; height: 60
+                    color: "#1A1A1A"
+                    radius: 8
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    border.color: "#8B7355"
+                    border.width: 2
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 15
+
+                        Text {
+                            text: window.tempAdminPassword
+                            font.pixelSize: 24
+                            font.bold: true
+                            color: "#8B7355"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Rectangle {
+                            width: 80; height: 36
+                            color: copyMA.pressed ? "#5A4F3F" : "#8B7355"
+                            radius: 18
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                text: "Copiar"
+                                color: "white"
+                                font.pixelSize: 14
+                                font.bold: true
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                id: copyMA
+                                anchors.fill: parent
+                                onClicked: {
+                                    console.log("=== COPY CLICKED ===")
+                                    Clipboard.text = window.tempAdminPassword
+                                    console.log("Clipboard:", Clipboard.text)
+                                    copyFeedback.text = "Copiado!"
+                                    copyBtnText.text = "Copiado"
+                                    copyFeedbackTimer.restart()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    id: copyFeedback
+                    text: ""
+                    color: "#4CAF50"
+                    font.pixelSize: 14
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Timer {
+                    id: copyFeedbackTimer
+                    interval: 2000
+                    onTriggered: {
+                        copyFeedback.text = ""
+                        copyBtnText.text = "Copiar"
+                    }
+                }
+
+                        Rectangle {
+                            width: 80; height: 36
+                            color: copyMA.pressed ? "#5A4F3F" : "#8B7355"
+                            radius: 18
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                text: "Copiar"
+                                color: "white"
+                                font.pixelSize: 14
+                                font.bold: true
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                id: copyMA
+                                anchors.fill: parent
+                                onClicked: {
+                                    console.log("=== COPIANDO PASSWORD ===")
+                                    Clipboard.text = window.tempAdminPassword
+                                    console.log("Clipboard.text:", Clipboard.text)
+                                    copyFeedback.text = "Copiado!"
+                                    copyFeedbackTimer.restart()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    id: copyFeedback
+                    text: ""
+                    color: "#4CAF50"
+                    font.pixelSize: 14
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Timer {
+                    id: copyFeedbackTimer
+                    interval: 2000
+                    onTriggered: copyFeedback.text = ""
+                }
+
+                        Rectangle {
+                            width: 80; height: 36
+                            color: copyMA.pressed ? "#5A4F3F" : "#8B7355"
+                            radius: 18
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                text: "Copiar"
+                                color: "white"
+                                font.pixelSize: 14
+                                font.bold: true
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                id: copyMA
+                                anchors.fill: parent
+                                onClicked: {
+                                    console.log("=== COPIANDO PASSWORD ===")
+                                    Clipboard.text = window.tempAdminPassword
+                                    console.log("Clipboard text ahora:", Clipboard.text)
+                                    window._copyCount = (window._copyCount || 0) + 1
+                                    copyFeedback.text = "Copiado (" + window._copyCount + ")!"
+                                    copyFeedbackTimer.restart()
+                                }
+                            }
                         }
                     }
                 }
