@@ -18,6 +18,12 @@ CREATE TABLE IF NOT EXISTS public.negocios (
     email TEXT,
     logo_url TEXT,
     horario TEXT,
+    hora_apertura TEXT DEFAULT '09:00',
+    hora_cierre TEXT DEFAULT '18:00',
+    dias_laborales TEXT DEFAULT 'lunes,martes,miercoles,jueves,viernes',
+    duracion_cita INTEGER DEFAULT 45,
+    descripcion TEXT,
+    notas TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -29,6 +35,8 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
     telefono TEXT,
     birthday TEXT,
     rol TEXT DEFAULT 'cliente',
+    password TEXT,
+    must_change_password BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

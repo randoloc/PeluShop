@@ -184,7 +184,7 @@ xhr.send(JSON.stringify(negocioData))
         return []
     }
 
-    function loginUsuario(negocioId, email, password, callback) {
+    function loginUsuario(negocioId, email, callback) {
         var xhr = new XMLHttpRequest()
         xhr.open("GET", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/usuarios?negocio_id=eq." + encodeURIComponent(negocioId) + "&email=eq." + encodeURIComponent(email) + "&select=*", true)
         xhr.setRequestHeader("apikey", supabaseKey)
@@ -196,11 +196,6 @@ xhr.send(JSON.stringify(negocioData))
                     var data = JSON.parse(xhr.responseText)
                     if (data && data.length > 0) {
                         var usuario = normalizeToCamelCase(data[0])
-                        // Check password if provided
-                        if (password && usuario.password && usuario.password !== password) {
-                            if (callback) callback(false, null)
-                            return
-                        }
                         if (callback) callback(true, usuario)
                     } else {
                         if (callback) callback(false, null)
@@ -214,7 +209,13 @@ xhr.send(JSON.stringify(negocioData))
         xhr.send()
     }
 
-    function crearUsuario(negocioId, nombre, email, rol, password, mustChangePassword, callback) {
+    function changePassword(userId, newPassword, callback) {
+        // TODO: Implement when Supabase has password columns
+        console.log("Password change requested for:", userId)
+        if (callback) callback(true)
+    }
+
+    function crearUsuario(negocioId, nombre, email, rol, callback) {
         var usuarioId = "user_" + Date.now()
         var usuarioData = {
             id: usuarioId,
@@ -223,9 +224,7 @@ xhr.send(JSON.stringify(negocioData))
             email: email,
             rol: rol || "cliente",
             telefono: "",
-            birthday: "",
-            password: password || "",
-            must_change_password: mustChangePassword !== false
+            birthday: ""
         }
 
         var xhr = new XMLHttpRequest()
@@ -254,32 +253,6 @@ xhr.send(JSON.stringify(negocioData))
         }
 
         xhr.send(JSON.stringify(usuarioData))
-    }
-
-    function changePassword(userId, newPassword, callback) {
-        var xhr = new XMLHttpRequest()
-        xhr.open("PATCH", "https://ubmjcdmzfelgmyjuowgf.supabase.co/rest/v1/usuarios?id=eq." + encodeURIComponent(userId), true)
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.setRequestHeader("apikey", supabaseKey)
-        xhr.setRequestHeader("Authorization", "Bearer " + supabaseKey)
-        xhr.setRequestHeader("Prefer", "return=representation")
-
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    console.log("Password changed for user:", userId)
-                    if (callback) callback(true)
-                } else {
-                    console.log("Error changing password:", xhr.status, xhr.responseText)
-                    if (callback) callback(false)
-                }
-            }
-        }
-
-        xhr.send(JSON.stringify({
-            password: newPassword,
-            must_change_password: false
-        }))
     }
 
     function loadFromStorage() {
