@@ -14,5 +14,6 @@
         <file>src/qml/pages/admin/GestionServicios.qml</file>
         <file>src/qml/pages/admin/GestionTurnos.qml</file>
         <file>src/qml/components/CategoriaCard.qml</file>
+        <file>src/qml/LoadingOverlay.qml</file>
     </qresource>
 </RCC>

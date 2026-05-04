@@ -1,5 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import Qt.labs.platform 1.0
 
 ApplicationWindow {
     id: window
@@ -16,6 +17,10 @@ ApplicationWindow {
     }
     property var currentUser: null
     property string currentPage: "splash"
+    property string autoFillEmail: ""
+    property string tempAdminEmail: ""
+    property string tempAdminPassword: ""
+    property bool showTempPassword: false
     property var selectedService: null
     property int selectedDia: -1
     property string selectedHora: ""
@@ -45,7 +50,10 @@ property string currentNegocioId: ""
     }
 
     function doLogin(user) {
-        if (user.rol === "admin") {
+        if (user.mustChangePassword) {
+            currentUser = user
+            currentPage = "changePassword"
+        } else if (user.rol === "admin") {
             currentUser = user
             currentPage = "admin"
         } else if (user.birthday === "" || user.birthday === undefined) {
@@ -204,6 +212,12 @@ property string currentNegocioId: ""
                             anchors.leftMargin: 18
                             color: "white"
                             font.pixelSize: 15
+                            Component.onCompleted: {
+                                if (window.autoFillEmail) {
+                                    text = window.autoFillEmail
+                                    window.autoFillEmail = ""
+                                }
+                            }
                         }
 
                         Text {
@@ -290,8 +304,11 @@ property string currentNegocioId: ""
 
                                 errorText.text = "Conectando..."
 
-                                if (window.syncManager && window.currentNegocioId) {
-                                    window.syncManager.loginUsuario(window.currentNegocioId, email, function(success, usuario) {
+                                var sm = window.syncManager
+                                var negocioId = window.currentNegocioId
+
+                                if (sm && negocioId) {
+                                    sm.loginUsuario(negocioId, email, pass, function(success, usuario) {
                                         if (success) {
                                             var user = {
                                                 id: usuario.id,
@@ -299,28 +316,12 @@ property string currentNegocioId: ""
                                                 nombre: usuario.nombre,
                                                 rol: usuario.rol,
                                                 birthday: usuario.birthday || "",
-                                                negocioId: usuario.negocioId
+                                                negocioId: usuario.negocioId,
+                                                mustChangePassword: usuario.mustChangePassword || false
                                             }
                                             window.doLogin(user)
                                         } else {
-                                            var esAdmin = email.toLowerCase().indexOf("admin") >= 0
-                                            if (window.syncManager) {
-                                                window.syncManager.crearUsuario(window.currentNegocioId, email.split("@")[0], email, esAdmin ? "admin" : "cliente", function(cuccess, nuevoUsuario) {
-                                                    if (cuccess) {
-                                                        var user = {
-                                                            id: nuevoUsuario.id,
-                                                            email: email,
-                                                            nombre: nuevoUsuario.nombre,
-                                                            rol: nuevoUsuario.rol,
-                                                            birthday: "",
-                                                            negocioId: window.currentNegocioId
-                                                        }
-                                                        window.doLogin(user)
-                                                    } else {
-                                                        errorText.text = "Error al registrar"
-                                                    }
-                                                })
-                                            }
+                                            errorText.text = "Correo o contraseña incorrectos"
                                         }
                                     })
                                 } else {
@@ -468,6 +469,77 @@ property string currentNegocioId: ""
                     }
 
                     Text {
+                        text: "Email del Administrador"
+                        font.pixelSize: 12
+                        color: "#8B7355"
+                    }
+
+                    Rectangle {
+                        width: 327
+                        height: 50
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#2A2A2A"
+
+                        TextInput {
+                            id: txtEmailAdmin
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            color: "white"
+                            font.pixelSize: 15
+                        }
+                    }
+
+                    Text {
+                        text: "Logo del negocio (opcional)"
+                        font.pixelSize: 12
+                        color: "#8B7355"
+                    }
+
+                    Rectangle {
+                        width: 327
+                        height: 50
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#2A2A2A"
+
+                        Text {
+                            id: txtLogoPath
+                            anchors.fill: parent
+                            anchors.margins: 16
+                            color: txtLogoPath.text === "" ? "#555" : "white"
+                            font.pixelSize: 14
+                            verticalAlignment: Text.AlignVCenter
+                            text: ""
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: fileDialog.open()
+                        }
+                    }
+
+                    // Logo preview
+                    Rectangle {
+                        visible: txtLogoPath.text !== ""
+                        width: 100; height: 100
+                        radius: 10
+                        color: "#141414"
+                        border.width: 1
+                        border.color: "#2A2A2A"
+                        anchors.horizontalCenter: parent.horizontalCenter
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            source: txtLogoPath.text !== "" ? "file://" + txtLogoPath.text : ""
+                            fillMode: Image.PreserveAspectFit
+                        }
+                    }
+
+                    Text {
                         id: errorNegocio
                         text: ""
                         color: "#E53935"
@@ -494,6 +566,7 @@ property string currentNegocioId: ""
                         }
 
                         MouseArea {
+                            id: btnCrearSalon
                             anchors.fill: parent
                             onClicked: {
                                 var nombre = txtNombreNegocio.text.trim()
@@ -504,6 +577,7 @@ property string currentNegocioId: ""
 
                                 var telefono = txtTelefonoNegocio.text.trim()
                                 var direccion = txtDireccionNegocio.text.trim()
+                                var emailAdmin = txtEmailAdmin.text.trim()
 
                                 console.log("Creando negocio:", nombre)
                                 errorNegocio.text = "Creando..."
@@ -515,7 +589,9 @@ property string currentNegocioId: ""
                                     negocioDataTemp = {
                                         nombre: nombre,
                                         telefono: telefono,
-                                        direccion: direccion
+                                        direccion: direccion,
+                                        emailAdmin: emailAdmin,
+                                        logoPath: txtLogoPath.text !== "" ? txtLogoPath.text : ""
                                     }
                                     currentPage = "configurarNegocio"
                                 } else {
@@ -526,13 +602,29 @@ property string currentNegocioId: ""
                     }
                 }
             }
+
+        // FileDialog for logo selection (Qt.labs.platform)
+        FileDialog {
+            id: fileDialog
+            title: "Seleccionar logo"
+            nameFilters: ["Image files (*.png *.jpg *.jpeg *.svg)"]
+            onAccepted: {
+                if (fileDialog.file !== null) {
+                    var path = fileDialog.file.toString().replace("file://", "")
+                    txtLogoPath.text = path
+                    txtLogoPath.color = "white"
+                }
+            }
+        }
         }
 
         // Configurar Negocio (Step 2 - Onboarding)
         Rectangle {
+            id: configurarNegocioPage
             width: 375; height: 812
             color: "#0D0D0D"
             visible: currentPage === "configurarNegocio"
+            property bool isSaving: false
 
             Flickable {
                 width: 375
@@ -831,38 +923,319 @@ property string currentNegocioId: ""
                             MouseArea {
                                 anchors.fill: parent
                                 onClicked: {
-if (diasTrabajoString === "") {
-                                            errorConfigurar.text = "Selecciona al menos un dia"
-                                            return
-                                        }
-
-var sm = syncMgr
-                                    if (sm && Object.keys(negocioDataTemp).length > 0) {
-                                        var datosExtra = {
-                                            nombre: negocioDataTemp.nombre,
-                                            telefono: negocioDataTemp.telefono,
-                                            direccion: negocioDataTemp.direccion,
-                                            descripcion: txtDescripcion.text.trim(),
-                                            horaApertura: txtHoraApertura.text,
-                                            horaCierre: txtHoraCierre.text,
-                                            diasLaborales: diasTrabajoString,
-                                            duracionCita: duracionCita,
-                                            notas: txtNotas.text.trim()
-                                        }
-
-                                        sm.crearNegocioCompleto(datosExtra, function(success, negocioId) {
-                                            if (success) {
-                                                currentPage = "login"
-                                            } else {
-                                                errorConfigurar.text = "Error al guardar"
-                                            }
-                                        })
+                                    if (diasTrabajoString === "") {
+                                        errorConfigurar.text = "Selecciona al menos un dia"
+                                        return
                                     }
+
+                                        configurarNegocioPage.isSaving = true
+                                     var sm = syncManager
+                                     if (sm && Object.keys(negocioDataTemp).length > 0) {
+                                         var datosExtra = {
+                                             nombre: negocioDataTemp.nombre,
+                                             telefono: negocioDataTemp.telefono,
+                                             direccion: negocioDataTemp.direccion,
+                                             descripcion: txtDescripcion.text.trim(),
+                                             horaApertura: txtHoraApertura.text,
+                                             horaCierre: txtHoraCierre.text,
+                                             diasLaborales: diasTrabajoString,
+                                             duracionCita: duracionCita,
+                                             notas: txtNotas.text.trim(),
+                                             logoPath: negocioDataTemp.logoPath || ""
+                                         }
+
+                                         sm.crearNegocioCompleto(datosExtra, function(success, returnedId) {
+                                             configurarNegocioPage.isSaving = false
+                                             if (success && returnedId) {
+                                                 window.currentNegocioId = returnedId
+                                                 window.hasNegocio = true
+                                                 // Generate temp password and save admin data
+                                                 if (negocioDataTemp.emailAdmin) {
+                                                     var adminEmail = negocioDataTemp.emailAdmin
+                                                     window.tempAdminEmail = adminEmail
+                                                     // Generate random temp password
+                                                     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                                                     var pass = ""
+                                                     for (var i = 0; i < 8; i++) {
+                                                         pass += chars.charAt(Math.floor(Math.random() * chars.length))
+                                                     }
+                                                     window.tempAdminPassword = pass
+                                                     // Create admin user with temp password
+                                                     sm.crearUsuario(returnedId, adminEmail.split("@")[0], adminEmail, "admin", pass, true, function(success2, nuevoUsuario) {
+                                                         if (success2) {
+                                                             window.showTempPassword = true
+                                                             currentPage = "showTempPassword"
+                                                         } else {
+                                                             errorConfigurar.text = "Error al crear admin"
+                                                         }
+                                                     })
+                                                 } else {
+                                                     currentPage = "login"
+                                                 }
+                                             } else {
+                                                 errorConfigurar.text = "Error al guardar"
+                                             }
+                                         })
+                                     } else {
+                                         configurarNegocioPage.isSaving = false
+                                     }
                                 }
                             }
                         }
 
-                        Item { height: 40 }
+                Item { height: 40 }
+                    }
+                }
+
+                // Loading overlay con tijeras giratorias
+                LoadingOverlay {
+                    isSaving: configurarNegocioPage.isSaving
+                }
+            }
+        }
+
+        // Show Temp Password Page
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "showTempPassword"
+
+            Column {
+                width: 375
+                spacing: 20
+                anchors.centerIn: parent
+
+                Text {
+                    text: "B"
+                    font.family: "Georgia"
+                    font.pixelSize: 80
+                    color: "#8B7355"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "PeluShop"
+                    font.family: "Georgia"
+                    font.pixelSize: 28
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Item { height: 20 }
+
+                Text {
+                    text: "Tu contraseña temporal"
+                    font.pixelSize: 22
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Guarda esta contraseña, la necesitarás para tu primer inicio de sesión"
+                    font.pixelSize: 14
+                    color: "#AAAAAA"
+                    width: 300
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Rectangle {
+                    width: 300; height: 60
+                    color: "#1A1A1A"
+                    radius: 8
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    border.color: "#8B7355"
+                    border.width: 2
+
+                    Text {
+                        text: window.tempAdminPassword
+                        font.pixelSize: 24
+                        font.bold: true
+                        color: "#8B7355"
+                        anchors.centerIn: parent
+                    }
+                }
+
+                Text {
+                    text: "Email: " + window.tempAdminEmail
+                    font.pixelSize: 16
+                    color: "#CCCCCC"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Item { height: 20 }
+
+                Rectangle {
+                    width: 200; height: 50
+                    color: "#8B7355"
+                    radius: 25
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "Continuar al login"
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            window.autoFillEmail = window.tempAdminEmail
+                            currentPage = "login"
+                        }
+                    }
+                }
+            }
+        }
+
+        // Change Password Page (first login)
+        Rectangle {
+            width: 375; height: 812
+            color: "#0D0D0D"
+            visible: currentPage === "changePassword"
+
+            Column {
+                width: 375
+                spacing: 20
+                anchors.centerIn: parent
+
+                Text {
+                    text: "PeluShop"
+                    font.family: "Georgia"
+                    font.pixelSize: 28
+                    font.bold: true
+                    color: "white"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Cambio de contraseña requerido"
+                    font.pixelSize: 18
+                    color: "#8B7355"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: "Por seguridad, debes cambiar tu contraseña temporal"
+                    font.pixelSize: 14
+                    color: "#AAAAAA"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Column {
+                    spacing: 8
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "Nueva contraseña"
+                        color: "#8B7355"
+                        font.pixelSize: 14
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+
+                    Rectangle {
+                        width: 300; height: 50
+                        color: "#1A1A1A"
+                        radius: 8
+                        border.color: "#8B7355"
+                        border.width: 1
+
+                        TextInput {
+                            id: newPassInput
+                            anchors.fill: parent
+                            anchors.margins: 15
+                            color: "white"
+                            font.pixelSize: 16
+                            echoMode: TextInput.Password
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+
+                Column {
+                    spacing: 8
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "Confirmar contraseña"
+                        color: "#8B7355"
+                        font.pixelSize: 14
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+
+                    Rectangle {
+                        width: 300; height: 50
+                        color: "#1A1A1A"
+                        radius: 8
+                        border.color: "#8B7355"
+                        border.width: 1
+
+                        TextInput {
+                            id: confirmPassInput
+                            anchors.fill: parent
+                            anchors.margins: 15
+                            color: "white"
+                            font.pixelSize: 16
+                            echoMode: TextInput.Password
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+
+                Text {
+                    id: changePassError
+                    text: ""
+                    color: "#E53935"
+                    font.pixelSize: 13
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Rectangle {
+                    width: 200; height: 50
+                    color: newPassInput.text.length >= 6 && newPassInput.text === confirmPassInput.text ? "#8B7355" : "#333333"
+                    radius: 25
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Text {
+                        text: "Cambiar contraseña"
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            if (newPassInput.text.length < 6) {
+                                changePassError.text = "Minimo 6 caracteres"
+                                return
+                            }
+                            if (newPassInput.text !== confirmPassInput.text) {
+                                changePassError.text = "Las contraseñas no coinciden"
+                                return
+                            }
+                            if (window.syncManager && window.currentUser) {
+                                window.syncManager.changePassword(window.currentUser.id, newPassInput.text, function(success) {
+                                    if (success) {
+                                        window.currentUser.mustChangePassword = false
+                                        // Navigate based on role
+                                        if (window.currentUser.rol === "admin") {
+                                            currentPage = "admin"
+                                        } else {
+                                            currentPage = "inicio"
+                                        }
+                                    } else {
+                                        changePassError.text = "Error al cambiar contraseña"
+                                    }
+                                })
+                            }
+                        }
                     }
                 }
             }

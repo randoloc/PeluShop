@@ -1,8 +1,9 @@
 # Agent Teams Lite - Orchestration Config
 
 **Project**: beauty-booking
+**Engram Project**: pelushop
 **Mode**: hybrid
-**Updated**: 2026-04-20
+**Updated**: 2026-05-04
 
 ## Manifest
 
@@ -45,3 +46,4 @@
 - Document architecture decisions
 - Keep tasks small (one session)
 - Run verification after implementation
+- **On user's FIRST message**: always call `mem_search` with query from their message and `project: pelushop` to recall context before responding
